@@ -4,7 +4,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <signal.h>
 #include <stdio.h>
+
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -17,10 +19,20 @@
 #define TRUE 1
 
 volatile int STOP=FALSE;
+int flag=1, conta=1;
+bool mensagen_correta = false;
 
+void atende()                   // atende alarme
+{
+	printf("alarme # %d\n", conta);
+	flag=1;
+	conta++;
+}
 int main(int argc, char** argv)
 {
+
     int fd,c, res;
+	unsigned char foo;
     struct termios oldtio,newtio;
     char buf[255];
 	unsigned char SET[5];
@@ -30,8 +42,8 @@ int main(int argc, char** argv)
 	SET[1]=A;
 	SET[2]=C_SET;
 	SET[3]=SET[1]^SET[2];
+	SET[4]=FLAG;
 
-	bytes = write(fd,SET,5);	
 
     int i, sum = 0, speed = 0;
 
@@ -82,6 +94,58 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
 
+	bytes = write(fd,SET,5);
+
+	int state=0;
+
+	while(state!=5){
+	
+	read(fd, &foo,1);
+
+	switch(state){
+
+	case 0: if(foo==FLAG)
+			state=1;
+			break;
+	case 1: if(foo==FLAG)
+			state=1;
+			 if(foo==A)
+			state=2;
+			else
+			state=0;
+			break;
+	case 2:	if(foo==FLAG) state=1;
+			if(foo==C_SET) state=3;
+			else state=0;
+			break;
+	case 3: if(foo==FLAG) state=1;
+			if(!A^C_SET) state=4;
+			else state=0;
+			break;
+	case 4: if(foo==FLAG) {
+			state=5;
+			mensagem_correta = true;
+			}
+			else state=0;
+			break;
+	}
+	/*
+if(mensagem_correta == false && conta==3){
+	
+}
+	
+
+(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+
+while(conta < 4){
+   if(flag){
+    alarm(3);                 // activa alarme de 3s
+    flag=0;
+	bytes = write(fd,SET,5);
+   }
+}*/
+
+	}
     gets(buf);
 
     int length;
@@ -93,8 +157,9 @@ int main(int argc, char** argv)
     printf("%d bytes written\n", res);
 
     while(STOP==FALSE){
-
+		sleep(0.5);
         res = read(fd,buf,1);
+	
 
         printf("Resultado: %d", res);
         buf[res]=0;
@@ -112,4 +177,6 @@ int main(int argc, char** argv)
     close(fd);
     return 0;
 }
+
+
 

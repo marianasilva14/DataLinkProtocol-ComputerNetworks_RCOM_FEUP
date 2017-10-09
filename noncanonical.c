@@ -20,14 +20,17 @@ int main(int argc, char** argv)
 {
 	    int fd,c, res;
 	    struct termios oldtio,newtio;
+	unsigned char foo;
 	    char buf[255];
 	buf[254] = '\0';
-	unsigned char c;
+
+
 	unsigned char UA[5];
 	UA[0] = FLAG;
 	UA[1] = A;
 	UA[2] = C_SET;
 	UA[3] = UA[1]^UA[2];
+	UA[4] = FLAG;
 		
 
 	    if ( (argc < 2) || 
@@ -81,42 +84,40 @@ int main(int argc, char** argv)
 
 	    printf("New termios structure set\n");
 
+		int state = 0;
 
 		while(state!=5){
 
-			read(fd, &c, 1);
-			state = 0;
+			read(fd, &foo, 1);
 			switch(state){
 				case 0:
-					if(c==FLAG) state = 1;
+					if(foo==FLAG) state = 1;
 					break;
 				case 1:
-					if(c==FLAG) state = 1;
-					if(c==A) state = 2;
+					if(foo==FLAG) state = 1;
+					if(foo==A) state = 2;
 					else state = 0;
 					break;
 				case 2:
-					if(c==C_SET) state = 3;
-					if(c==FLAG) state = 1;
+					if(foo==FLAG) state = 1;
+					if(foo==C_SET) state = 3;
 					else state = 0;
 					break;
 				case 3:
-					if(A^C_SET) state = 4;
-					if(c==FLAG) state = 1;
+					if(foo==FLAG) state = 1;					
+					if(!A^C_SET) state = 4;
 					else state = 0;
 					break;
 				case 4:
-					if(c==FLAG) state = 5
+					if(foo==FLAG) state = 5;
 					else state = 0;
 					break;
 			}
 
 		}
-
 		
 		write(fd, UA, 5);
 
-		
 		char retString[255];
 		int n=0;
 
@@ -134,8 +135,6 @@ int main(int argc, char** argv)
 		printf("%s\n", retString);
 		int len = strlen(retString);
 		write(fd, retString, len+1);
-
-	
 
 		sleep(3);
 
