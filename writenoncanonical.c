@@ -93,15 +93,19 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
 
-	bytes = write(fd,SET,5);
+	
+	
+	WRITE:bytes = write(fd,SET,5);
 
 	int state=0;
 
 	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
 	alarm(3);
 
-	while(state!=5 && flag_alarm){
+	while(state!=5 || flag_alarm){
 	
+	goto WRITE;
+
 	read(fd, &foo,1);
 
 	switch(state){
