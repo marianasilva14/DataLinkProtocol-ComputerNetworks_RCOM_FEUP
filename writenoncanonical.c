@@ -19,13 +19,16 @@
 #define TRUE 1
 
 volatile int STOP=FALSE;
-int flag_alarm=0, conta_alarm=0;
+int flag_alarm=0, conta_alarm=0, flag_continue = 0;
 
 void atende()                   // atende alarme
 {
 	printf("alarme # %d\n", conta_alarm);
 	flag_alarm=1;
 	conta_alarm++;
+	if(conta_alarm==3){
+		printf("Exiting...");
+		exit(-1);}
 }
 int main(int argc, char** argv)
 {
@@ -53,6 +56,8 @@ int main(int argc, char** argv)
       exit(1);
     }
 
+	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+
 
   /*
     Open serial port device for reading and writing and not as controlling tty
@@ -60,7 +65,7 @@ int main(int argc, char** argv)
   */
 
 
-    fd = open(argv[1], O_RDWR | O_NOCTTY );
+    fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (fd <0) {perror(argv[1]); exit(-1); }
 
     if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
@@ -91,53 +96,59 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    printf("New termios structure set\n");
-
+    printf("New termios structure set\n");	
 	
 	
-	WRITE:bytes = write(fd,SET,5);
+	
 
 	int state=0;
 
-	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-	alarm(3);
-
-	while(state!=5 || flag_alarm){
 	
-	goto WRITE;
+	
 
-	read(fd, &foo,1);
+		while(!flag_continue){
 
-	switch(state){
+			bytes = write(fd,SET,5);
+			alarm(3);
+			while(state!=5 && !flag_alarm){
 
-	case 0: if(foo==FLAG)
-			state=1;
-			break;
-	case 1: if(foo==FLAG)
-			state=1;
-			 if(foo==A)
-			state=2;
-			else
-			state=0;
-			break;
-	case 2:	if(foo==FLAG) state=1;
-			if(foo==C_SET) state=3;
-			else state=0;
-			break;
-	case 3: if(foo==FLAG) state=1;
-			if(!A^C_SET) state=4;
-			else state=0;
-			break;
-	case 4: if(foo==FLAG) {
-			state=5;
-			}
-			else state=0;
-			break;
-	}
+				read(fd, &foo,1);
 
-	}
-    gets(buf);
+					switch(state){
 
+						case 0: if(foo==FLAG)
+								state=1;
+								break;
+						case 1: if(foo==FLAG)
+								state=1;
+								if(foo==A)
+								state=2;
+								else
+								state=0;
+								break;
+						case 2:	if(foo==FLAG) state=1;
+								if(foo==C_SET) state=3;
+								else state=0;
+								break;
+						case 3: if(foo==FLAG) state=1;
+								if(!A^C_SET) state=4;
+								else state=0;
+								break;
+						case 4: if(foo==FLAG) {
+								state=5;
+								}
+								else state=0;
+								break;
+						default: continue;
+					}
+				}
+				alarm(0);
+				flag_continue = 1;
+				
+}
+    
+
+	gets(buf);
     int length;
     length = strlen(buf);
 	buf[length] = 0;
