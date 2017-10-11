@@ -117,8 +117,6 @@ int main(int argc, char** argv)
 		}
 
 		printf("SET received successfully!\n");
-
-		sleep(10);
 		
 		write(fd, UA, 5);
 

@@ -110,6 +110,7 @@ int main(int argc, char** argv)
 
 			bytes = write(fd,SET,5);
 			alarm(3);
+			flag_alarm = 0;
 			while(state!=5 && !flag_alarm){
 
 				read(fd, &foo,1);
@@ -136,15 +137,14 @@ int main(int argc, char** argv)
 								break;
 						case 4: if(foo==FLAG) {
 								state=5;
+								flag_continue = 1;
+								alarm(0);
 								}
 								else state=0;
 								break;
 						default: continue;
 					}
 				}
-				alarm(0);
-				flag_continue = 1;
-				
 }
     
 
@@ -162,7 +162,7 @@ int main(int argc, char** argv)
         res = read(fd,buf,1);
 	
 
-        printf("Resultado: %d", res);
+        printf("Resultado: %d\n", res);
         buf[res]=0;
         printf(":%s:%d\n", buf, res);
         if(buf[0]=='\0')
