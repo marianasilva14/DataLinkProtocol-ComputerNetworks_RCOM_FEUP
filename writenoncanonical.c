@@ -19,14 +19,13 @@
 #define TRUE 1
 
 volatile int STOP=FALSE;
-int flag=1, conta=1;
-bool mensagen_correta = false;
+int flag_alarm=0, conta_alarm=0;
 
 void atende()                   // atende alarme
 {
-	printf("alarme # %d\n", conta);
-	flag=1;
-	conta++;
+	printf("alarme # %d\n", conta_alarm);
+	flag_alarm=1;
+	conta_alarm++;
 }
 int main(int argc, char** argv)
 {
@@ -98,7 +97,10 @@ int main(int argc, char** argv)
 
 	int state=0;
 
-	while(state!=5){
+	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+	alarm(3);
+
+	while(state!=5 && flag_alarm){
 	
 	read(fd, &foo,1);
 
@@ -124,26 +126,10 @@ int main(int argc, char** argv)
 			break;
 	case 4: if(foo==FLAG) {
 			state=5;
-			mensagem_correta = true;
 			}
 			else state=0;
 			break;
 	}
-	/*
-if(mensagem_correta == false && conta==3){
-	
-}
-	
-
-(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-
-while(conta < 4){
-   if(flag){
-    alarm(3);                 // activa alarme de 3s
-    flag=0;
-	bytes = write(fd,SET,5);
-   }
-}*/
 
 	}
     gets(buf);
