@@ -86,7 +86,7 @@ int main(int argc, char** argv)
 
   /*
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-    leitura do(s) próximo(s) caracter(es)
+    leitura do(s) prÃ³ximo(s) caracter(es)
   */
 
     tcflush(fd, TCIOFLUSH);
@@ -96,15 +96,15 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    printf("New termios structure set\n");	
-	
-	
-	
+    printf("New termios structure set\n");
+
+
+
 
 	int state=0;
 
-	
-	
+
+
 
 		while(!flag_continue){
 
@@ -146,7 +146,7 @@ int main(int argc, char** argv)
 					}
 				}
 }
-    
+
 
 	gets(buf);
     int length;
@@ -160,7 +160,7 @@ int main(int argc, char** argv)
     while(STOP==FALSE){
 		sleep(0.5);
         res = read(fd,buf,1);
-	
+
 
         printf("Resultado: %d\n", res);
         buf[res]=0;
@@ -178,6 +178,3 @@ int main(int argc, char** argv)
     close(fd);
     return 0;
 }
-
-
-
