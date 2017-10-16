@@ -13,5 +13,6 @@ int main(int argc, char** argv){
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
     exit(1);
   }
+  /*lalalala*/
 
 }
