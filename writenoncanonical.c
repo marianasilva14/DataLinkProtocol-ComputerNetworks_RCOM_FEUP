@@ -19,6 +19,8 @@
 volatile int STOP=FALSE;
 int flag_alarm=0, conta_alarm=0, flag_continue = 0;
 struct termios oldtio,newtio;
+FILE *file;
+int filesize;
 
 void atende()                   // atende alarme
 {
@@ -28,76 +30,100 @@ void atende()                   // atende alarme
 	if(conta_alarm==3){
 		printf("Exiting...");
 		exit(-1);}
-}
+	}
 
-void stateMachineTransmissor(int fd,unsigned char SET[5]){
-	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-	int state=0;
-	unsigned char foo;
-	int bytes;
+	void stateMachineTransmissor(int fd,unsigned char SET[5]){
+		(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+		int state=0;
+		unsigned char foo;
+		int bytes;
 
-	while(!flag_continue){
+		while(!flag_continue){
 
-		bytes = write(fd,SET,5);
-		alarm(3);
-		flag_alarm = 0;
-		while(state!=5 && !flag_alarm){
+			bytes = write(fd,SET,5);
+			alarm(3);
+			flag_alarm = 0;
+			while(state!=5 && !flag_alarm){
 
-			read(fd, &foo,1);
+				read(fd, &foo,1);
 
-			switch(state){
+				switch(state){
 
-				case 0: if(foo==FLAG)
-				state=1;
-				break;
-				case 1: if(foo==FLAG)
-				state=1;
-				if(foo==A)
-				state=2;
-				else
-				state=0;
-				break;
-				case 2:	if(foo==FLAG) state=1;
-				if(foo==C_SET) state=3;
-				else state=0;
-				break;
-				case 3: if(foo==FLAG) state=1;
-				if(!A^C_SET) state=4;
-				else state=0;
-				break;
-				case 4: if(foo==FLAG) {
-					state=5;
-					flag_continue = 1;
-					alarm(0);
+					case 0: if(foo==FLAG)
+					state=1;
+					break;
+					case 1: if(foo==FLAG)
+					state=1;
+					if(foo==A)
+					state=2;
+					else
+					state=0;
+					break;
+					case 2:	if(foo==FLAG) state=1;
+					if(foo==C_SET) state=3;
+					else state=0;
+					break;
+					case 3: if(foo==FLAG) state=1;
+					if(!A^C_SET) state=4;
+					else state=0;
+					break;
+					case 4: if(foo==FLAG) {
+						state=5;
+						flag_continue = 1;
+						alarm(0);
+					}
+					else state=0;
+					break;
+					default: continue;
 				}
-				else state=0;
-				break;
-				default: continue;
 			}
 		}
 	}
-}
 
-int llopen(int fd)
-{
-	unsigned char SET[5];
-	SET[0]=FLAG;
-	SET[1]=A;
-	SET[2]=C_SET;
-	SET[3]=SET[1]^SET[2];
-	SET[4]=FLAG;
+	int llopen(int fd)
+	{
+		unsigned char SET[5];
+		SET[0]=FLAG;
+		SET[1]=A;
+		SET[2]=C_SET;
+		SET[3]=SET[1]^SET[2];
+		SET[4]=FLAG;
 
-	stateMachineTransmissor(fd,SET);
+		stateMachineTransmissor(fd,SET);
 
-	if(flag_continue==1)
-	return 0;
-	else
-	return -1;
-}
+		if(flag_continue==1)
+		return 0;
+		else
+		return -1;
+	}
 
+	unsigned char *preparellwrite(int fd,char  * buffer){
+
+		unsigned char C = 0x00;
+		unsigned char BCC1 = A^C;
+		unsigned char BCC2;
+
+		fseek(file,0,SEEK_END);
+		filesize = ftell(file);
+		fseek(file,0,SEEK_SET);
+
+
+	}
+	int llwrite(int fd, char * buffer, int length){
+
+		int res;
+		res = write(fd,buffer,length+1);
+		printf("%d bytes written\n", res);
+
+
+		if(res >0)
+		return res;
+
+		return -1;
+	}
 	int main(int argc, char** argv)
 	{
-		int fd,c, res;
+		int fd,c,length,res;
 		char buf[255];
 
 		int i, sum = 0, speed = 0;
@@ -150,15 +176,11 @@ int llopen(int fd)
 		printf("New termios structure set\n");
 		llopen(fd);
 
-
 		gets(buf);
-		int length;
 		length = strlen(buf);
 		buf[length] = 0;
+		res=llwrite(fd,buf,length);
 
-
-		res = write(fd,buf,length+1);
-		printf("%d bytes written\n", res);
 
 		while(STOP==FALSE){
 			sleep(0.5);
@@ -172,7 +194,6 @@ int llopen(int fd)
 			STOP=TRUE;
 
 		}
-
 		if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
 			perror("tcsetattr");
 			exit(-1);
