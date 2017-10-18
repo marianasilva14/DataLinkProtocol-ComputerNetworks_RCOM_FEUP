@@ -222,7 +222,7 @@ void atende()                   // atende alarme
 
 		int res;
 		preparellwrite(fd);
-		
+		          
 /*
 		if(res >0)
 		return res;
