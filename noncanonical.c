@@ -1,21 +1,9 @@
 /*Non-Canonical Input Processing*/
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <stdio.h>
-
-#define BAUDRATE B38400
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
-#define FLAG 0x7e
-#define A 0x03
-#define C_SET 0x03
+#include "Utilities.h"
 
 volatile int STOP=FALSE;
 struct termios oldtio,newtio;
+FILE *file;
 
 void stateMachineReceiver(int fd,unsigned char UA[5])
 {
@@ -70,14 +58,19 @@ int main(int argc, char** argv)
 	char buf[255];
 	buf[254] = '\0';
 
-	if ( (argc < 2) ||
+	if ( (argc < 3) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
 	(strcmp("/dev/ttyS1", argv[1])!=0) )) {
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
 
+		struct stat st;
+		stat(argv[2], &st);
+		size = st.st_size;
 
+		file = fopen(argv[2],"wb");
 	/*
 	Open serial port device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
@@ -103,14 +96,10 @@ int main(int argc, char** argv)
 	newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
 	newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
-
-
 	/*
 	VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
 	leitura do(s) pr�ximo(s) caracter(es)
 	*/
-
-
 
 	tcflush(fd, TCIOFLUSH);
 
