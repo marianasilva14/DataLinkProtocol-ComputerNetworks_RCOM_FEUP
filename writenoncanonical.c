@@ -100,23 +100,23 @@ void atende()                   // atende alarme
 		memcpy(packet,fileData,packetSize);
 	}
 
-	unsigned char *connectionLayer(unsigned char* fileData,unsigned int *newSize){
+	unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 		unsigned char BCC2;
 		int k,j;
-		newSize=sizeof(fileData)+SIZE_CONNECTION_LAYER;
-
-		for(int i=0; i < sizeof(fileData);i++)	{
+		*newSize = sizeof(fileData)+SIZE_CONNECTION_LAYER;
+		int i;
+		for(i=0; i < sizeof(fileData);i++)	{
 			if(fileData[i]==0x7e  || fileData[i]==0x7d)
 			newSize++;
 		}
 
 		BCC2=fileData[0]^fileData[1];
 
-		for(int i=2;i < sizeof(fileData);i++)
+		for(i=2;i < sizeof(fileData);i++)
 		BCC2= BCC2 ^ fileData[i];
 
 		//allocation of BCC2
-		unsigned char *frameI= (unsigned char*)malloc(newSize);
+		unsigned char *frameI= (unsigned char*)malloc(*newSize);
 
 
 		frameI= (unsigned char*)malloc(sizeof(fileData)+5);
@@ -127,7 +127,7 @@ void atende()                   // atende alarme
 		//byte frameIing
 		k=4;
 		j=5;
-		for(int i=0;i < sizeof(fileData);i++)
+		for(i=0;i < sizeof(fileData);i++)
 		{
 			if(fileData[i]==0x7e){
 				frameI[k]=0x7d;
@@ -145,8 +145,8 @@ void atende()                   // atende alarme
 			j++;
 		}
 
-		frameI[newSize-2]=BCC2;
-		frameI[newSize-1]=FLAG;
+		frameI[*newSize-2]=BCC2;
+		frameI[*newSize-1]=FLAG;
 
 		return frameI;
 	}
@@ -177,13 +177,13 @@ void atende()                   // atende alarme
 
 	int llwrite(int fd){
 		unsigned char packet[260];
-		unsigned char *frameI, *buffer[1000];
+		unsigned char *frameI, buffer[1000];
 		int res;
 		unsigned int size=0;
 
 		while(!EOF){
 			readPacket_Application(fd,packet,sizeof(packet));
-			buffer=connectionLayer(packet,&size);
+			memcpy(buffer, connectionLayer(packet,&size), size);
 			frameI = (unsigned char*)malloc(size);
 			memcpy(frameI, buffer, size);
 			res=write(fd,frameI,size);
@@ -194,9 +194,9 @@ void atende()                   // atende alarme
 		}
 		*/
 
-		while(){
+		/*while(){
 
-		}
+		}*/
 	}
 	return res;
 }
@@ -216,7 +216,7 @@ int main(int argc, char** argv)
 
 	struct stat st;
 	stat(argv[2], &st);
-	size = st.st_size;
+	int size = st.st_size;
 
 	file = fopen(argv[2],"rb");
 
