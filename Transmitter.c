@@ -103,23 +103,28 @@ void atende()                   // atende alarme
 	unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 		unsigned char BCC2;
 		int k,j;
-		*newSize = sizeof(fileData)+SIZE_CONNECTION_LAYER;
+
+		*newSize = (*newSize)+SIZE_CONNECTION_LAYER;
+		unsigned char size= *newSize;
+
 		int i;
-		for(i=0; i < sizeof(fileData);i++)	{
-			if(fileData[i]==0x7e  || fileData[i]==0x7d)
-			newSize++;
+
+		for(i=0; i < size;i++)	{
+
+			if(fileData[i]==0x7E  || fileData[i]==0x7D)
+				(*newSize)++;
 		}
 
 		BCC2=fileData[0]^fileData[1];
 
-		for(i=2;i < sizeof(fileData);i++)
-		BCC2= BCC2 ^ fileData[i];
+		for(i=2;i < *newSize;i++)
+			BCC2= BCC2 ^ fileData[i];
 
 		//allocation of BCC2
 		unsigned char *frameI= (unsigned char*)malloc(*newSize);
 
 
-		frameI= (unsigned char*)malloc(sizeof(fileData)+5);
+		frameI= (unsigned char*)malloc(*newSize+5);
 		frameI[0]=FLAG;
 		frameI[1]=A;
 		frameI[2]=C1;
@@ -127,26 +132,26 @@ void atende()                   // atende alarme
 		//byte frameIing
 		k=4;
 		j=5;
-		for(i=0;i < sizeof(fileData);i++)
+		for(i=0;i < *newSize;i++)
 		{
-			if(fileData[i]==0x7e){
-				frameI[k]=0x7d;
-				frameI[j]=0x5e;
+			if(fileData[i]==0x7E){
+				frameI[k]=0x7D;
+				frameI[j]=0x5E;
 			}
-			else if(fileData[i]==0x7d){
-				frameI[k]=0x7d;
-				frameI[j]=0x5d;
+			else if(fileData[i]==0x7D){
+				frameI[k]=0X7D;
+				frameI[j]=0x5D;
 			}
 
-			if(fileData[i] !=0x7e || fileData[i] != 0x7d){
+			if(fileData[i] !=0x7E || fileData[i] != 0x7D){
 				frameI[k]=fileData[i];
 			}
 			k++;
 			j++;
 		}
 
-		frameI[*newSize-2]=BCC2;
-		frameI[*newSize-1]=FLAG;
+		frameI[(*newSize)-2]=BCC2;
+		frameI[(*newSize)-1]=FLAG;
 
 		return frameI;
 	}
@@ -213,6 +218,16 @@ int main(int argc, char** argv)
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
+
+	unsigned int test_int = 23;
+	unsigned char* test_buf = "isto } e um teste ~ dois";
+	printf("vai entrar layer\n");
+	test_buf = connectionLayer(test_buf,&test_int);
+	for (size_t i = 0; i < 30; i++) {
+		printf("buf stuffed: %x\n",test_buf[i]);
+		/* code */
+	}
+	return 0;
 
 	struct stat st;
 	stat(argv[2], &st);

@@ -16,6 +16,9 @@
 #define TRUE 1
 #define SIZE_CONNECTION_LAYER 6
 #define SIZE_FRAME_I 9
+#define RR(x) (0b00000101 + (x) << 7)
+#define REJ(y) (0b00000001 + (y) << 7)
+
 
 int getFileSize(FILE* file) {
 	// saving current position
