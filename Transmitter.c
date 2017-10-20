@@ -18,7 +18,7 @@ void atende()                   // atende alarme
 		exit(-1);}
 	}
 
-	void stateMachineTransmissor(int fd,unsigned char SET[5]){
+	void stateMachineTransmissor(int fd,unsigned char SET[5], unsigned char controlByte){
 		(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
 		int state=0;
 		unsigned char foo;
@@ -47,11 +47,11 @@ void atende()                   // atende alarme
 						state=0;
 						break;
 						case 2:	if(foo==FLAG) state=1;
-						if(foo==C_SET) state=3;
+						if(foo==controlByte) state=3;
 						else state=0;
 						break;
 						case 3: if(foo==FLAG) state=1;
-						if(!A^C_SET) state=4;
+						if(foo=(A^controlByte)) state=4;
 						else state=0;
 						break;
 						case 4: if(foo==FLAG) {
