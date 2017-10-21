@@ -1,4 +1,3 @@
-/*Non-Canonical Input Processing*/
 #include "Utilities.h"
 
 volatile int STOP=FALSE;
@@ -212,7 +211,8 @@ int llopen(int fd){
 	UA[3] = UA[1]^UA[2];
 	UA[4] = FLAG;
 
-	int k=stateMachineReceiver(fd,UA[2]);
+	int sucess=stateMachineReceiver(fd,UA[2]);
+	return sucess;
 
 }
 int main(int argc, char** argv)
