@@ -2,7 +2,9 @@
 #include "Utilities.h"
 
 volatile int STOP=FALSE;
-int flag_alarm=0, conta_alarm=0, flag_continue = 0;
+//tries alarm
+int conta_alarm = 1;
+int flag_alarm = 0;
 struct termios oldtio,newtio;
 FILE *file;
 int filesize;
@@ -13,70 +15,89 @@ void atende()                   // atende alarme
 	printf("alarme # %d\n", conta_alarm);
 	flag_alarm=1;
 	conta_alarm++;
-	if(conta_alarm==3){
-		printf("Exiting...");
-		exit(-1);}
-	}
+}
 
-	void stateMachineTransmissor(int fd,unsigned char SET[5], unsigned char controlByte){
-		(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+	int stateMachineTransmissor(int fd, unsigned char controlByte){
 		int state=0;
-		unsigned char foo;
-		int bytes;
+		char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
+		char buf[1];
+		int errorflag = 0;
 
-		while(!flag_continue){
+			while(state !=5 && STOP == FALSE){
 
-			bytes = write(fd,SET,5);
-			alarm(3);
-			flag_alarm = 0;
-			while(state!=5 && !flag_alarm){
-
-				int res =read(fd, &foo,1);
+				int res =read(fd,buf,1);
 				if(res>0)
 				{
 					switch(state){
 
-						case 0: if(foo==FLAG)
-						state=1;
+						case 0:
+						if(buf[0]!=supervisionPacket[0])
+							errorflag=-1;
 						break;
-						case 1: if(foo==FLAG)
-						state=1;
-						if(foo==A)
-						state=2;
-						else
-						state=0;
+						case 1:
+						if(buf[0]!=supervisionPacket[1])
+							errorflag=-1;
 						break;
-						case 2:	if(foo==FLAG) state=1;
-						if(foo==controlByte) state=3;
-						else state=0;
+						case 2:
+						if(buf[0]!=supervisionPacket[2])
+							errorflag=-1;
 						break;
-						case 3: if(foo==FLAG) state=1;
-						if(foo=(A^controlByte)) state=4;
-						else state=0;
+						case 3:
+						if(buf[0]!=supervisionPacket[3])
+							errorflag=-1;
 						break;
-						case 4: if(foo==FLAG) {
-							state=5;
-							flag_continue = 1;
-							alarm(0);
-						}
-						else state=0;
+						case 4:
+						if(buf[0]!=supervisionPacket[4])
+							errorflag=-1;
 						break;
-						default: continue;
+					};
+					state++;
+
+					if(state == 5 && errorflag == 0){
+						STOP = TRUE;
+						return 0;
 					}
 				}
+				else
+					return -1;
 			}
-		}
 	}
-
 
 	int llopen(int fd)
 	{
-		unsigned char SET[5];
-		SET[0]=FLAG;
-		SET[1]=A;
-		SET[2]=C_SET;
-		SET[3]=SET[1]^SET[2];
-		SET[4]=FLAG;
+		int res;
+		while(conta_alarm < 4){
+			unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
+
+			res = write(fd, SET, 5);
+
+			if(res < 0){
+				printf("Cannot write\n");
+				return -1;
+			}
+
+			alarm(3);
+
+			while(!flag_alarm && STOP == FALSE){
+				unsigned char controlByte = C_UA;
+				int success  = stateMachineTransmissor(controlByte, fd);
+				return success;
+			}
+
+			if(STOP == TRUE){
+				alarm(0);
+				conta_alarm = 0;
+				STOP = FALSE;
+				flag_alarm = 0;
+				return 0;
+			}
+
+			else
+				flag_alarm = 0;
+		}
+
+	}
+
 
 		stateMachineTransmissor(fd,SET);
 
@@ -205,8 +226,38 @@ void atende()                   // atende alarme
 	}
 	return res;
 }
+
+int transmission(int fd){
+		int size = getFileSize(file);
+		int counter, finish, read, res, res2 = 0;
+
+		while(finish == 0){
+			if(counter >= 3)
+				return -1;
+			counter++;
+
+			res2 = 0;
+
+			res = llopen(fd);
+
+			if(res < 0)
+				return -1;
+
+			res2 = llwrite(fd);
+
+			if(res2 < size)
+				continue;
+			else
+				finish = 1;
+		}
+
+		return 0;
+}
+
 int main(int argc, char** argv)
 {
+	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+
 	int fd,c,length,res;
 	char buf[255];
 
@@ -218,20 +269,16 @@ int main(int argc, char** argv)
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
-
+/*
 	unsigned int test_int = 23;
 	unsigned char* test_buf = "isto } e um teste ~ dois";
 	printf("vai entrar layer\n");
 	test_buf = connectionLayer(test_buf,&test_int);
 	for (size_t i = 0; i < 30; i++) {
 		printf("buf stuffed: %x\n",test_buf[i]);
-		/* code */
 	}
 	return 0;
-
-	struct stat st;
-	stat(argv[2], &st);
-	int size = st.st_size;
+*/
 
 	file = fopen(argv[2],"rb");
 
@@ -239,7 +286,6 @@ int main(int argc, char** argv)
 	Open serial port device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
 	*/
-
 
 	fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (fd <0) {perror(argv[1]); exit(-1); }
@@ -274,11 +320,10 @@ int main(int argc, char** argv)
 	}
 
 	printf("New termios structure set\n");
-	llopen(fd);
 
-	res=llwrite(fd);
-
+	transmission(fd);
 	fclose(file);
+	
 	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
 		perror("tcsetattr");
 		exit(-1);
