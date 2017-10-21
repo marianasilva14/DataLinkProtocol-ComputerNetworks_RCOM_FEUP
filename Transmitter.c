@@ -21,11 +21,12 @@ void atende()                   // atende alarme
 		int state=0;
 		char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
 		char buf[1];
+		int res;
 		int errorflag = 0;
 
 			while(state !=5 && STOP == FALSE){
 
-				int res =read(fd,buf,1);
+				res =read(fd,buf,1);
 				if(res>0)
 				{
 					switch(state){
@@ -66,8 +67,8 @@ void atende()                   // atende alarme
 	int llopen(int fd)
 	{
 		int res;
+		unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
 		while(conta_alarm < 4){
-			unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
 
 			res = write(fd, SET, 5);
 
@@ -96,14 +97,6 @@ void atende()                   // atende alarme
 				flag_alarm = 0;
 		}
 
-	}
-
-
-		stateMachineTransmissor(fd,SET);
-
-		if(flag_continue==1)
-		return 0;
-		else
 		return -1;
 	}
 
@@ -323,7 +316,7 @@ int main(int argc, char** argv)
 
 	transmission(fd);
 	fclose(file);
-	
+
 	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
 		perror("tcsetattr");
 		exit(-1);

@@ -5,6 +5,9 @@
 #include <termios.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -17,8 +20,8 @@
 #define TRUE 1
 #define SIZE_CONNECTION_LAYER 6
 #define SIZE_FRAME_I 9
-#define RR(x) (0b00000101 + (x) << 7)
-#define REJ(y) (0b00000001 + (y) << 7)
+#define RR(x) (0b00000101 + ((x) << 7))
+#define REJ(y) (0b00000001 + ((y) << 7))
 
 
 int getFileSize(FILE* file) {
