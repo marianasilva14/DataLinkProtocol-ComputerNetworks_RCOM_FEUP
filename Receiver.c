@@ -66,16 +66,29 @@ unsigned char *readFrameI(int * length){
 	unsigned char *finalBuf=(unsigned char*)malloc(size);
 	int state = 0;
 	int res;
+	int contador = 0;
 	while (state!=5) {
+
+		//printf("Antes do read: %d\n", contador);
 		res= read(fd, &buf, 1);
-		if(res >0){
+		printf("buf: %x\n", buf);
+		if(res > 0){
+				printf("Depois do read: %d\n", contador);
+				//if(contador<10)
+					contador++;
+					//else
+					//exit(0);
 
 			switch(state){
 				case 0:
-				if(buf==FLAG)
-				state=1;
+				printf("aqui neste estado 0\n");
+				if(buf==FLAG){
+					printf("entrou no if!!!\n");
+					state=1;
+				}
 				break;
 				case 1:
+				printf("aqui neste estado 1\n");
 				if(buf==A)
 				state=2;
 				else if(buf == FLAG)
@@ -84,7 +97,8 @@ unsigned char *readFrameI(int * length){
 				state=0;
 				break;
 				case 2:
-				if(buf== C_INFO(0) || buf == C_INFO(1)){
+				printf("aqui neste estado 2\n");
+				if((buf== C_INFO(0)) || (buf == C_INFO(1))){
 					c_info=buf;
 					state=3;
 				}
@@ -94,43 +108,44 @@ unsigned char *readFrameI(int * length){
 				state=0;
 				break;
 				case 3:
-				if(buf==A^c_info)
+				printf("aqui neste estado 3\n");
+				if(buf==(A^c_info))
 				state=4;
 				else
 				state=0;
 				break;
 				case 4:
+				printf("aqui neste estado 4\n");
 				if(buf==FLAG)
 				state=5;
-				else
-				state=0;
 				break;
-			};
+			}
 			finalBuf[size-1]=buf;
 			size+=1;
 			finalBuf=(unsigned char*)realloc(finalBuf,size);
+
 		}
 		else
 			continue;
 	}
+	printf("cheguei aqui\n");
 	*length=size;
 	return finalBuf;
 
 }
 
-unsigned char *byteDestuffing(unsigned char  *buf, int *sizeBuf){
+unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 
 	unsigned char *newBuf=(unsigned char*)malloc(*sizeBuf);
 	unsigned char *finalBuf;
-	unsigned char size= *sizeBuf;
-	int countSize_newBuf=0;
+	int countSize_newBuf=4;
 	int i,j,k;
 
-
-	k=0;
-	j=1;
+	k=4;
+	j=5;
 	for(i=0;i < *sizeBuf;i++)
 	{
+		printf("NO FOR\n");
 		if(buf[k]==0x7d && buf[j]==0x5e){
 			newBuf[i]=0x7e;
 			countSize_newBuf++;
@@ -143,21 +158,26 @@ unsigned char *byteDestuffing(unsigned char  *buf, int *sizeBuf){
 			k++;
 			j++;
 		}
-
 		else {
 			newBuf[i]=buf[k];
+			countSize_newBuf++;
 		}
 		k++;
 		j++;
 	}
 
-	*sizeBuf=*sizeBuf-countSize_newBuf;
+	*sizeBuf=countSize_newBuf;
+	printf("sizeBuf: %d\n",*sizeBuf );
 	finalBuf= (unsigned char*)malloc(*sizeBuf);
 	memcpy(finalBuf,newBuf,*sizeBuf);
 	free(newBuf);
-
+	for( i = 0; i < *sizeBuf; i++){
+		printf("newBuf: %x\n", newBuf[i]);
+	}
+	for( i = 0; i < *sizeBuf; i++){
+		printf("finalBuf: %x\n", finalBuf[i]);
+	}
 	return finalBuf;
-
 }
 
 
@@ -217,8 +237,21 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 }
 int llread(){
 
+	unsigned char *buf;
+	int size_buf=0;
+	unsigned char *buf2;
+	buf=readFrameI(&size_buf);
+	printf("Antes do byteDestuffing\n");
+	printf("size_buf: %d", size_buf);
+	buf2=byteDestuffing(buf, &size_buf);
+	printf("Depois do byteDestuffing\n");
+	memcpy(buf2, buf, size_buf);
+	printf("size_buf: %d", size_buf);
+	//verifyBCC2(buf2, size_buf);
 
+	return 0;
 }
+
 int llopen(){
 	unsigned char UA[5]={FLAG,A,C_UA,A^C_UA,FLAG};
 	int res;
@@ -244,9 +277,6 @@ int main(int argc, char** argv)
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
 		exit(1);
 	}
-
-	unsigned char* buf= "isto }~ um teste}";
-	int fsize=16;
 
 	/*
 	Open serial port device for reading and writing and not as controlling tty
@@ -289,13 +319,7 @@ int main(int argc, char** argv)
 
 	//file = fopen(argv[2],"wb");
 	llopen();
-
-	unsigned char* lido = (unsigned char*)malloc(4);
-	read(fd, lido, 4);
-	int i = 0;
-	for(i = 0; i < 4; i++){
-		printf("lido: %c\n", lido[i]);
-	}
+	llread();
 
 	sleep(3);
 
