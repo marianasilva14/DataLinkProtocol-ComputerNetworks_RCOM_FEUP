@@ -98,18 +98,20 @@ int llopen()
 		return 0;
 }
 
-void readPacket_Application(unsigned char *packet,int packetSize){
+unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
 	int counter=0;
 	unsigned char *fileData;
-
+	printf("estou aqui\n");
 	fileData=(unsigned char*)malloc(packetSize+4);
 	fileData[0]=0x01;
 	fileData[1]=counter;
-	fileData[2]=(getFileSize(file)-fileData[3])/256;
-	fileData[3]=getFileSize(file)-256*fileData[2];
+	fileData[2]=packetSize/256;
+	fileData[3]=packetSize%256;
 	printf("Antes do memcpy\n");
 	memcpy(fileData+4,packet,packetSize);
 	printf("No readPacket_Application\n");
+
+	return fileData;
 }
 
 unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
@@ -149,13 +151,17 @@ unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 		if(fileData[i]==0x7E){
 			frameI[k]=0x7D;
 			frameI[j]=0x5E;
+			k++;
+			j++;
 		}
 		else if(fileData[i]==0x7D){
-			frameI[k]=0X7D;
+			frameI[k]=0x7D;
 			frameI[j]=0x5D;
+			k++;
+			j++;
 		}
 
-		if(fileData[i] !=0x7E || fileData[i] != 0x7D){
+		else if(fileData[i] !=0x7E || fileData[i] != 0x7D){
 			frameI[k]=fileData[i];
 		}
 		k++;
@@ -199,6 +205,7 @@ int llwrite(){
 	unsigned int size=0;
 
 	while(!EOF){
+		printf("antes do connectionLayer");
 		memcpy(buffer, connectionLayer(packet,&size), size);
 		frameI = (unsigned char*)malloc(size);
 		memcpy(frameI, buffer, size);
@@ -216,7 +223,7 @@ int main(int argc, char** argv)
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
-
+/*
 file = fopen(argv[2],"rb");
 if(file < 0){
 	printf("Could not open file to be sent\n");
@@ -227,40 +234,51 @@ int fsize = getFileSize(file);
 printf("size of file: %d\n", fsize);
 unsigned char* buf = (unsigned char*)malloc(fsize);
 fread(buf,sizeof(unsigned char),fsize,file);
+*/
 printf("fread feito\n");
-readPacket_Application(buf,fsize);
+unsigned char* buf= "isto }~ um teste";
+int fsize=16;
+buf= readPacket_Application(buf,fsize);
+buf= connectionLayer(buf,&fsize);
+for(int i=0;i < fsize;i++){
+	printf("char:%x\n", buf[i]);
+}
 
 /*
 Open serial port device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
 */
-
+/*
 fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
 if (fd <0) {perror(argv[1]); exit(-1); }
 
 
 if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
+/*
 	perror("tcgetattr");
 	exit(-1);
 }
 
+/*
 bzero(&newtio, sizeof(newtio));
 newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
 newtio.c_iflag = IGNPAR;
 newtio.c_oflag = 0;
 
 /* set input mode (non-canonical, no echo,...) */
+
+/*
 newtio.c_lflag = 0;
 
 newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
+//newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
 
 
 /*
 VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
 leitura do(s) próximo(s) caracter(es)
 */
-
+/*
 tcflush(fd, TCIOFLUSH);
 
 if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
@@ -269,7 +287,8 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 }
 
 printf("Antes llopen\n");
-llopen();
+//llopen();
+llwrite();
 printf("llopen feito \n");
 fclose(file);
 
@@ -279,5 +298,6 @@ if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
 }
 
 close(fd);
+*/
 return 0;
 }

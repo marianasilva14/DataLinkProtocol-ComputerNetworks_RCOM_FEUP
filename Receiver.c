@@ -56,59 +56,56 @@ int stateMachineReceiver(unsigned char controlByte)
 	return 0;
 }
 
-unsigned char *readFrameI(int * length,unsigned char controlByte){
-	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
-	unsigned int size=1;
-	unsigned char *finalBuf=(unsigned char*)malloc(size);
-	unsigned char *buf=(unsigned char*)malloc(sizeof(unsigned char)*1);
+unsigned char *readFrameI(int * length){
+
+	unsigned char buf;
+	unsigned char c_info;
 	int state = 0;
 	int res;
 	while (state!=5) {
-		res= read(fd, buf, 1);
+		res= read(fd, &buf, 1);
 		if(res >0){
 
 			switch(state){
 				case 0:
-				if(buf[0]==supervisionPacket[0])
+				if(buf==FLAG)
 				state=1;
 				break;
 				case 1:
-				if(buf[0]==supervisionPacket[1])
+				if(buf==A)
 				state=2;
-				else if(buf[0] == supervisionPacket[0])
+				else if(buf == FLAG)
 				state=1;
 				else
 				state=0;
 				break;
 				case 2:
-				if(buf[0]==supervisionPacket[2])
-				state=3;
-				else if (buf[0] == supervisionPacket[0])
+				if(buf== C_INFO(0) || buf == C_INFO(1)){
+					c_info=buf;
+					state=3;
+				}
+				else if (buf == FLAG)
 				state=1;
 				else
 				state=0;
 				break;
 				case 3:
-				if(buf[0]==supervisionPacket[3])
+				if(buf==A^c_info)
 				state=4;
 				else
 				state=0;
 				break;
 				case 4:
-				if(buf[0]==supervisionPacket[4])
+				if(buf==FLAG)
 				state=5;
 				else
 				state=0;
 				break;
 			};
-			finalBuf[size-1]=buf[0];
-			size+=1;
-			finalBuf=(unsigned char*)realloc(finalBuf,size);
 		}
 		else
 			continue;
 	}
-	*length=size;
 	return buf;
 }
 
@@ -253,16 +250,18 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
+	readFrameI
+
 	/*
 	Open serial port device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
 	*/
-
+/*
 	fd = open(argv[1], O_RDWR | O_NOCTTY );
 	if (fd <0) {perror(argv[1]); exit(-1); }
 
 	if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-		perror("tcgetattr");
+		/*perror("tcgetattr");
 		exit(-1);
 	}
 
@@ -272,16 +271,17 @@ int main(int argc, char** argv)
 	newtio.c_oflag = 0;
 
 	/* set input mode (non-canonical, no echo,...) */
+/*
 	newtio.c_lflag = 0;
 
 	newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-	newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+	//newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
 	/*
 	VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
 	leitura do(s) pr�ximo(s) caracter(es)
 	*/
-
+/*
 	tcflush(fd, TCIOFLUSH);
 
 	if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
@@ -298,5 +298,6 @@ int main(int argc, char** argv)
 
 	tcsetattr(fd,TCSANOW,&oldtio);
 	close(fd);
+	*/
 	return 0;
 }
