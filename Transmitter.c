@@ -143,13 +143,14 @@ return tail;
 unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 
 	int k,j,i;
-	unsigned char size = *newSize;
+	unsigned int size = *newSize;
 
 	for(i=0; i < size;i++)	{
 
-		if(fileData[i]==0x7E  || fileData[i]==0x7D)
+		if((fileData[i]==0x7E)  || (fileData[i]==0x7D))
 		(*newSize)++;
 	}
+
 
 	unsigned char* frameI=(unsigned char*)malloc(*newSize+1);
 
@@ -208,7 +209,6 @@ int detectedFrameIConfirmations(){
 
 int llwrite(unsigned char*  buffer,int length){
 	int res=0;
-	int i;
 	unsigned int frameI_length=0;
 	unsigned char* frameI= malloc(0);
 
@@ -229,8 +229,7 @@ int llwrite(unsigned char*  buffer,int length){
 	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 	memcpy(frameI+4,stuffing_array+4,frameI_length);
 
-	res= write(fd,buffer,length);
-
+	res = write(fd,frameI,frameI_length);
 
 return res;
 }
@@ -250,6 +249,7 @@ if(file < 0){
 	printf("Could not open file to be sent\n");
 	exit(-1);
 }
+
 
 int fsize = getFileSize(file);
 printf("size of file: %d\n", fsize);
@@ -299,12 +299,9 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 printf("Antes llopen\n");
 llopen();
 printf("llopen feito \n");
-unsigned char*message ="ola\n";
-int size_message=4;
-//llwrite(buf,fsize);
+int res= llwrite(buf,fsize);
+printf("write feito:%d \n",res);
 
-llwrite(message,size_message);
-printf("write feito \n");
 fclose(file);
 
 if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
