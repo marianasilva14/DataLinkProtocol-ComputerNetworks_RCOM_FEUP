@@ -28,58 +28,57 @@ void atende()                   // atende alarme
 int stateMachineTransmissor(unsigned char controlByte){
 	int state=0;
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
-	char buf[1];
+	char buf;
 	int res;
 
 	while(state != 5){
-
-		res =read(fd,buf,1);
-		if(res>0)
+		res = read(fd,&buf,1);
+		if(res > 0)
 		{
 			switch(state){
 				case 0:
-				if(buf[0]==supervisionPacket[0])
+				if(buf==supervisionPacket[0])
 					state=1;
 				break;
 				case 1:
-				if(buf[0]==supervisionPacket[1])
+				if(buf==supervisionPacket[1])
 					state=2;
-				else if(buf[0] == supervisionPacket[0])
+				else if(buf == supervisionPacket[0])
 					state=1;
 				else
 					state=0;
 				break;
 				case 2:
-				if(buf[0]==supervisionPacket[2])
+				if(buf==supervisionPacket[2])
 					state=3;
-				else if (buf[0] == supervisionPacket[0])
+				else if (buf == supervisionPacket[0])
 					state=1;
 				else
 					state=0;
 				break;
 				case 3:
-				if(buf[0]==supervisionPacket[3])
+				if(buf==supervisionPacket[3])
 					state=4;
 				else
 					state=0;
 				break;
 				case 4:
-				if(buf[0]==supervisionPacket[4])
+				if(buf==supervisionPacket[4])
 					state=5;
 				else
 					state=0;
 				break;
-			};
+			}
 		}
 		else
-		return -1;
+			continue;
 	}
 	return 0;
 }
 
 int llopen()
 {
-
+	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
 	int res;
 	unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
 
@@ -92,12 +91,8 @@ int llopen()
 		}
 
 		alarm(3);
-		int success = stateMachineTransmissor(C_UA);
+		stateMachineTransmissor(C_UA);
 
-		if(success < 0){
-			printf("message wasn't sent\n");
-		}
-		else
 		alarm(0);
 
 		return 0;
@@ -172,7 +167,7 @@ unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 
 	return frameI;
 }
-
+/*
 int detectedFrameIConfirmations(){
 
 	char buf[5];
@@ -195,12 +190,12 @@ int detectedFrameIConfirmations(){
 		return -1;
 
 	}
-}
+}*/
 
 int llwrite(){
 	unsigned char packet[260];
 	unsigned char *frameI, buffer[1000];
-	int res;
+	int res=0;
 	unsigned int size=0;
 
 	while(!EOF){
@@ -214,11 +209,6 @@ return res;
 
 int main(int argc, char** argv)
 {
-	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-
-	int c,length,res;
-
-	int i;
 
 	if ( (argc < 3) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -240,7 +230,6 @@ fread(buf,sizeof(unsigned char),fsize,file);
 printf("fread feito\n");
 readPacket_Application(buf,fsize);
 printf("Antes llopen\n");
-llopen();
 printf("llopen feito \n");
 /*
 Open serial port device for reading and writing and not as controlling tty
@@ -249,6 +238,7 @@ because we don't want to get killed if linenoise sends CTRL-C.
 
 fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
 if (fd <0) {perror(argv[1]); exit(-1); }
+
 
 if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
 	perror("tcgetattr");
@@ -278,6 +268,7 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 	perror("tcsetattr");
 	exit(-1);
 }
+llopen();
 
 fclose(file);
 
