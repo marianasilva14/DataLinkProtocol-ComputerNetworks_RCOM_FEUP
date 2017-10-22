@@ -113,15 +113,34 @@ unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
 
 	return fileData;
 }
+void addHeader(unsigned char* frameI, int sizeBuf){
+	//allocation of BCC2
 
-unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
-	unsigned char BCC2;
-	int k,j;
+	frameI= realloc(frameI,sizeBuf+4);
+	frameI[0]=FLAG;
+	frameI[1]=A;
+	frameI[2]=C1;
+	frameI[3]=A^C1;
 
-	*newSize = (*newSize)+SIZE_CONNECTION_LAYER;
-	unsigned char size= *newSize;
+}
+unsigned char *calculateBCC2(unsigned char* fileData, unsigned int newSize){
+unsigned char BCC2=0;
 
-	int i;
+unsigned char* tail= malloc(2);
+
+for(int i=0;i < newSize;i++)
+BCC2= BCC2 ^ fileData[i];
+
+tail[1]=FLAG;
+tail[0]=BCC2;
+
+return tail;
+
+}
+unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
+
+	int k,j,i;
+	unsigned char size = *newSize;
 
 	for(i=0; i < size;i++)	{
 
@@ -129,24 +148,12 @@ unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 		(*newSize)++;
 	}
 
-	BCC2=fileData[0]^fileData[1];
+	unsigned char* frameI=(unsigned char*)malloc(*newSize);
 
-	for(i=2;i < *newSize;i++)
-	BCC2= BCC2 ^ fileData[i];
-
-	//allocation of BCC2
-	unsigned char *frameI= (unsigned char*)malloc(*newSize);
-
-
-	frameI= (unsigned char*)malloc(*newSize+5);
-	frameI[0]=FLAG;
-	frameI[1]=A;
-	frameI[2]=C1;
-	frameI[3]=A^C1;
 	//byte frameIing
 	k=4;
 	j=5;
-	for(i=0;i < *newSize;i++)
+	for(i=0;i < *newSize-5;i++)
 	{
 		if(fileData[i]==0x7E){
 			frameI[k]=0x7D;
@@ -167,9 +174,6 @@ unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 		k++;
 		j++;
 	}
-
-	frameI[(*newSize)-2]=BCC2;
-	frameI[(*newSize)-1]=FLAG;
 
 	return frameI;
 }
@@ -198,19 +202,45 @@ int detectedFrameIConfirmations(){
 	}
 }*/
 
-int llwrite(){
-	unsigned char packet[260];
-	unsigned char *frameI, buffer[1000];
+int llwrite(unsigned char*  buffer,int length){
 	int res=0;
-	unsigned int size=0;
+	unsigned int frameI_length=0;
+	unsigned char* frameI= malloc(0);
 
-	while(!EOF){
-		printf("antes do connectionLayer");
-		memcpy(buffer, connectionLayer(packet,&size), size);
-		frameI = (unsigned char*)malloc(size);
-		memcpy(frameI, buffer, size);
-		res=write(fd,frameI,size);
-}
+	//add header F,A,C1,BCC1
+	addHeader(frameI,frameI_length);
+	frameI_length+=4;
+
+	printf("length:%d \n", frameI_length);
+	for(int i=0; i < frameI_length;i++){
+		printf("buffer: %x\n",frameI[i] );
+	}
+
+	//add buffer to frameI
+	frameI=realloc(frameI,frameI_length+length+2);
+	memcpy(frameI+frameI_length,buffer,length);
+	frameI_length+=length;
+	printf("buffer_l:%d \n", frameI_length);
+	for(int i=0; i < frameI_length;i++){
+		printf("buffer: %x\n",frameI[i] );
+	}
+	//add BCC2 to frameI
+	memcpy(frameI+frameI_length,calculateBCC2(buffer,length),2);
+	frameI_length+=2;
+	for(int i=0; i < frameI_length;i++){
+		printf("BCC2: %x\n",frameI[i] );
+	}
+
+
+	//add byteStuffing to frameI
+	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
+	memcpy(frameI+4,stuffing_array,frameI_length);
+	for(int i=0; i < frameI_length;i++){
+		printf("stuffing_array: %x\n",frameI[i] );
+	}
+	res= write(fd,buffer,length);
+
+
 return res;
 }
 
@@ -236,13 +266,11 @@ unsigned char* buf = (unsigned char*)malloc(fsize);
 fread(buf,sizeof(unsigned char),fsize,file);
 */
 printf("fread feito\n");
-unsigned char* buf= "isto }~ um teste";
-int fsize=16;
-buf= readPacket_Application(buf,fsize);
-buf= connectionLayer(buf,&fsize);
-for(int i=0;i < fsize;i++){
-	printf("char:%x\n", buf[i]);
-}
+unsigned char* buf= malloc(18);
+buf= "isto e um teste{~}";
+//buf="isto }~ um teste";
+int fsize=18;
+llwrite(buf,fsize);
 
 /*
 Open serial port device for reading and writing and not as controlling tty

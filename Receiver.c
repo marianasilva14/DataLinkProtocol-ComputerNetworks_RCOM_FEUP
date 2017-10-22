@@ -60,6 +60,8 @@ unsigned char *readFrameI(int * length){
 
 	unsigned char buf;
 	unsigned char c_info;
+	unsigned int size=1;
+	unsigned char *finalBuf=(unsigned char*)malloc(size);
 	int state = 0;
 	int res;
 	while (state!=5) {
@@ -102,62 +104,62 @@ unsigned char *readFrameI(int * length){
 				state=0;
 				break;
 			};
+			finalBuf[size-1]=buf;
+			size+=1;
+			finalBuf=(unsigned char*)realloc(finalBuf,size);
 		}
 		else
 			continue;
 	}
-	return buf;
+	*length=size;
+	return finalBuf;
+
 }
 
-unsigned char *byteDestuffing(unsigned char  *buf, int sizeBuf){
 
-	unsigned char *newBuf=(unsigned char*)malloc(sizeBuf);
+
+unsigned char *byteDestuffing(unsigned char  *buf, int *sizeBuf){
+
+	unsigned char *newBuf=(unsigned char*)malloc(*sizeBuf);
 	unsigned char *finalBuf;
+	unsigned char size= *sizeBuf;
 	int countSize_newBuf=0;
 	int i,j,k;
-	k=4;
-	j=5;
-	for(i=0;i < sizeof(buf);i++)
+
+
+	k=0;
+	j=1;
+	for(i=0;i < *sizeBuf;i++)
 	{
 		if(buf[k]==0x7d && buf[j]==0x5e){
 			newBuf[i]=0x7e;
 			countSize_newBuf++;
+			k++;
+			j++;
 		}
 		else if(buf[k]==0x7d && buf[j]==0x5d){
 			newBuf[i]=0x7d;
 			countSize_newBuf++;
+			k++;
+			j++;
 		}
 
 		else {
 			newBuf[i]=buf[k];
-			countSize_newBuf++;
 		}
 		k++;
 		j++;
 	}
 
-	finalBuf= (unsigned char*)malloc(sizeof(countSize_newBuf));
-	memcpy(finalBuf,newBuf,countSize_newBuf);
+	*sizeBuf=*sizeBuf-countSize_newBuf;
+	finalBuf= (unsigned char*)malloc(*sizeBuf);
+	memcpy(finalBuf,newBuf,*sizeBuf);
 	free(newBuf);
 
 	return finalBuf;
 
 }
-void verifyBCC1(unsigned char  *buf){
 
-	int size=0;
-
-	while(1){
-		if((buf[1]^buf[2])!=buf[3]){
-			//*buf=readFrameI(fd,&size);
-		}
-
-		else{
-			buf=byteDestuffing(buf,size);
-			return;
-		}
-	}
-}
 
 int verifyBCC2(unsigned char *buf, int size){
 	unsigned char BCC2;
@@ -171,9 +173,9 @@ int verifyBCC2(unsigned char *buf, int size){
 	BCC2_XOR ^= buf[i];
 
 	if(BCC2 == BCC2_XOR)
-	return 1;
+		return 1;
 	else
-	return 0;
+		return 0;
 }
 
 unsigned char *completSupervisionPacket(unsigned char controlByte){
@@ -215,10 +217,10 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 }
 int llread(){
 	//int size;
-	//unsigned char* buf= readFrameI(&size);
+	//unsigned char* buf= readFrameI(&siz
 	while (1) {
-		//verifyBCC1(&buf);
-		//sendRRorREJ(buf);
+			//readFrameI(&siz
+			//buf=byteDestuffing(buf,size);
 	}
 
 }
@@ -250,8 +252,9 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-	readFrameI
-
+	unsigned char* buf= "isto }~ um teste}";
+	int fsize=16;
+	
 	/*
 	Open serial port device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
