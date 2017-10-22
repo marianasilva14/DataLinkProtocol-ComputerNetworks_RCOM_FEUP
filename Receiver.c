@@ -4,87 +4,109 @@ volatile int STOP=FALSE;
 struct termios oldtio,newtio;
 FILE *file;
 
-int stateMachineReceiver(int fd,unsigned char controlByte)
+int stateMachineReceiver(unsigned char controlByte)
 {
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
 	int state = 0;
 	int res=0;
-	char buf[1];
-	int errorflag = 0;
+	char buf;
 
-	while(STOP==FALSE){
-		res= read(fd, buf, 1);
-		if(res<0)
-		return -1;
+	while (state!=5) {
+		res= read(fd, &buf, 1);
+		if(res >0){
 
 			switch(state){
 				case 0:
-				if(buf[0]!=supervisionPacket[0])
-				errorflag=-1;
+				if(buf==supervisionPacket[0])
+				state=1;
 				break;
 				case 1:
-				if(buf[0]!=supervisionPacket[1])
-				errorflag=-1;
+				if(buf==supervisionPacket[1])
+				state=2;
+				else if(buf == supervisionPacket[0])
+				state=1;
+				else
+				state=0;
 				break;
 				case 2:
-				if(buf[0]!=supervisionPacket[2])
-				errorflag=-1;
+				if(buf==supervisionPacket[2])
+				state=3;
+				else if (buf == supervisionPacket[0])
+				state=1;
+				else
+				state=0;
 				break;
 				case 3:
-				if(buf[0]!=supervisionPacket[3])
-				errorflag=-1;
+				if(buf==supervisionPacket[3])
+				state=4;
+				else
+				state=0;
 				break;
 				case 4:
-				if(buf[0]!=supervisionPacket[4])
-				errorflag=-1;
+				if(buf==supervisionPacket[4])
+				state=5;
+				else
+				state=0;
 				break;
-			};
-			state++;
-
-		if(state == 5 && errorflag == 0){
-			STOP = TRUE;
-			return 0;
+			}
 		}
+		else
+			continue;
 	}
-
-	return -1;
+	return 0;
 }
 
-unsigned char *readFrameI(int fd,int * length,unsigned char controlByte){
+unsigned char *readFrameI(int * length,unsigned char controlByte){
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
 	unsigned int size=1;
 	unsigned char *finalBuf=(unsigned char*)malloc(size);
 	unsigned char *buf=(unsigned char*)malloc(sizeof(unsigned char)*1);
 	int state = 0;
-	int errorflag=0;
-	while(state!=5){
+	int res;
+	while (state!=5) {
+		res= read(fd, buf, 1);
+		if(res >0){
 
-		read(fd, &buf, 1);
-		switch(state){
-			case 0:
-			if(buf[0]!=supervisionPacket[0])
-				errorflag=-1;
-			break;
-			case 1:
-			if(buf[0]!=supervisionPacket[1])
-				errorflag=-1;
-			break;
-			case 2:
-			if(buf[0]!= supervisionPacket[2])
-				errorflag=-1;
-			break;
-			case 3:
-			if(buf[0]!=supervisionPacket[3])
-				errorflag=-1;
-			break;
-			case 4:
-			if(buf[0]!=supervisionPacket[4])
-				errorflag=-1;
-			break;
+			switch(state){
+				case 0:
+				if(buf[0]==supervisionPacket[0])
+				state=1;
+				break;
+				case 1:
+				if(buf[0]==supervisionPacket[1])
+				state=2;
+				else if(buf[0] == supervisionPacket[0])
+				state=1;
+				else
+				state=0;
+				break;
+				case 2:
+				if(buf[0]==supervisionPacket[2])
+				state=3;
+				else if (buf[0] == supervisionPacket[0])
+				state=1;
+				else
+				state=0;
+				break;
+				case 3:
+				if(buf[0]==supervisionPacket[3])
+				state=4;
+				else
+				state=0;
+				break;
+				case 4:
+				if(buf[0]==supervisionPacket[4])
+				state=5;
+				else
+				state=0;
+				break;
+			};
+			finalBuf[size-1]=buf[0];
+			size+=1;
+			finalBuf=(unsigned char*)realloc(finalBuf,size);
 		}
-		finalBuf[size-1]=buf[0];
-		size+=1;
-		finalBuf=(unsigned char*)realloc(finalBuf,size);
+		else
+			continue;
 	}
 	*length=size;
 	return buf;
@@ -124,13 +146,13 @@ unsigned char *byteDestuffing(unsigned char  *buf, int sizeBuf){
 	return finalBuf;
 
 }
-void verifyBCC1(unsigned char  *buf,int fd){
+void verifyBCC1(unsigned char  *buf){
 
-	int size;
+	int size=0;
 
 	while(1){
-		if(buf[1]^buf[2]!=buf[3]){
-					//*buf=readFrameI(fd,&size);
+		if((buf[1]^buf[2])!=buf[3]){
+			//*buf=readFrameI(fd,&size);
 		}
 
 		else{
@@ -169,11 +191,11 @@ unsigned char *completSupervisionPacket(unsigned char controlByte){
 	return supervisionPacket;
 }
 
-void sendRRorREJ(int fd,unsigned char *buf){
+void sendRRorREJ(unsigned char *buf,int bufSize){
 
 	unsigned char * supervisionPacket;
 
-	if(verifyBCC2(buf,fd)){
+	if(verifyBCC2(buf,bufSize)){
 		if(buf[2] == 0x00){
 			supervisionPacket= completSupervisionPacket(RR(1));
 			write(fd,supervisionPacket,1);
@@ -194,32 +216,34 @@ void sendRRorREJ(int fd,unsigned char *buf){
 		}
 	}
 }
-int llread(int fd){
-	int size;
-		//unsigned char* buf= readFrameI(fd, &size);
+int llread(){
+	//int size;
+	//unsigned char* buf= readFrameI(&size);
 	while (1) {
-		//verifyBCC1(&buf,fd);
-		//sendRRorREJ(fd,buf);
+		//verifyBCC1(&buf);
+		//sendRRorREJ(buf);
 	}
 
 }
-int llopen(int fd){
-	unsigned char UA[5];
-	UA[0] = FLAG;
-	UA[1] = A;
-	UA[2] = C_UA;
-	UA[3] = UA[1]^UA[2];
-	UA[4] = FLAG;
+int llopen(){
+	unsigned char UA[5]={FLAG,A,C_UA,A^C_UA,FLAG};
+	int res;
 
-	int sucess=stateMachineReceiver(fd,UA[2]);
-	return sucess;
+	stateMachineReceiver(C_SET);
+
+
+	res=write(fd,UA,5);
+	if(res<0)
+	{
+		printf("Cannot write\n");
+		return -1;
+	}
+
+	return 0;
 
 }
 int main(int argc, char** argv)
 {
-	int fd,c, res;
-	char buf[255];
-	buf[254] = '\0';
 
 	if ( (argc < 3) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -229,18 +253,10 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-
-
-	struct stat st;
-	stat(argv[2], &st);
-	int size = st.st_size;
-
-	file = fopen(argv[2],"wb");
 	/*
 	Open serial port device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
 	*/
-
 
 	fd = open(argv[1], O_RDWR | O_NOCTTY );
 	if (fd <0) {perror(argv[1]); exit(-1); }
@@ -274,8 +290,9 @@ int main(int argc, char** argv)
 	}
 
 	printf("New termios structure set\n");
-	llopen(fd);
+	llopen();
 
+	//file = fopen(argv[2],"wb");
 	sleep(3);
 
 

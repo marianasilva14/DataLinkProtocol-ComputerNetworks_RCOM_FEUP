@@ -229,8 +229,7 @@ unsigned char* buf = (unsigned char*)malloc(fsize);
 fread(buf,sizeof(unsigned char),fsize,file);
 printf("fread feito\n");
 readPacket_Application(buf,fsize);
-printf("Antes llopen\n");
-printf("llopen feito \n");
+
 /*
 Open serial port device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
@@ -268,8 +267,10 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 	perror("tcsetattr");
 	exit(-1);
 }
-llopen();
 
+printf("Antes llopen\n");
+llopen();
+printf("llopen feito \n");
 fclose(file);
 
 if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
