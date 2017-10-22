@@ -33,8 +33,10 @@ int stateMachineTransmissor(unsigned char controlByte){
 
 	while(state != 5){
 		res = read(fd,&buf,1);
+		printf("depois do read \n");
 		if(res > 0)
 		{
+			printf("antes do switch \n");
 			switch(state){
 				case 0:
 				if(buf==supervisionPacket[0])
@@ -89,10 +91,11 @@ int llopen()
 			printf("Cannot write\n");
 			return -1;
 		}
-
+		printf("antes do alarme \n");
 		alarm(3);
+		printf("antes da maquina \n");
 		stateMachineTransmissor(C_UA);
-
+			printf("depois da maquina \n");
 		alarm(0);
 
 		return 0;
@@ -126,12 +129,12 @@ void addHeader(unsigned char* frameI, int sizeBuf){
 unsigned char *calculateBCC2(unsigned char* fileData, unsigned int newSize){
 unsigned char BCC2=0;
 
-unsigned char* tail= malloc(2);
+unsigned char* tail= malloc(1);
+int i;
 
-for(int i=0;i < newSize;i++)
+for(i=0;i < newSize;i++)
 BCC2= BCC2 ^ fileData[i];
 
-tail[1]=FLAG;
 tail[0]=BCC2;
 
 return tail;
@@ -148,7 +151,7 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 		(*newSize)++;
 	}
 
-	unsigned char* frameI=(unsigned char*)malloc(*newSize);
+	unsigned char* frameI=(unsigned char*)malloc(*newSize+1);
 
 	//byte frameIing
 	k=4;
@@ -175,6 +178,7 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 		j++;
 	}
 
+frameI[*newSize-1]=FLAG;
 	return frameI;
 }
 /*
@@ -204,6 +208,7 @@ int detectedFrameIConfirmations(){
 
 int llwrite(unsigned char*  buffer,int length){
 	int res=0;
+	int i;
 	unsigned int frameI_length=0;
 	unsigned char* frameI= malloc(0);
 
@@ -211,33 +216,19 @@ int llwrite(unsigned char*  buffer,int length){
 	addHeader(frameI,frameI_length);
 	frameI_length+=4;
 
-	printf("length:%d \n", frameI_length);
-	for(int i=0; i < frameI_length;i++){
-		printf("buffer: %x\n",frameI[i] );
-	}
-
 	//add buffer to frameI
 	frameI=realloc(frameI,frameI_length+length+2);
 	memcpy(frameI+frameI_length,buffer,length);
 	frameI_length+=length;
-	printf("buffer_l:%d \n", frameI_length);
-	for(int i=0; i < frameI_length;i++){
-		printf("buffer: %x\n",frameI[i] );
-	}
+
 	//add BCC2 to frameI
 	memcpy(frameI+frameI_length,calculateBCC2(buffer,length),2);
 	frameI_length+=2;
-	for(int i=0; i < frameI_length;i++){
-		printf("BCC2: %x\n",frameI[i] );
-	}
-
 
 	//add byteStuffing to frameI
 	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
-	memcpy(frameI+4,stuffing_array,frameI_length);
-	for(int i=0; i < frameI_length;i++){
-		printf("stuffing_array: %x\n",frameI[i] );
-	}
+	memcpy(frameI+4,stuffing_array+4,frameI_length);
+
 	res= write(fd,buffer,length);
 
 
@@ -253,7 +244,7 @@ int main(int argc, char** argv)
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
-/*
+
 file = fopen(argv[2],"rb");
 if(file < 0){
 	printf("Could not open file to be sent\n");
@@ -264,30 +255,21 @@ int fsize = getFileSize(file);
 printf("size of file: %d\n", fsize);
 unsigned char* buf = (unsigned char*)malloc(fsize);
 fread(buf,sizeof(unsigned char),fsize,file);
-*/
-printf("fread feito\n");
-unsigned char* buf= malloc(18);
-buf= "isto e um teste{~}";
-//buf="isto }~ um teste";
-int fsize=18;
-llwrite(buf,fsize);
 
 /*
 Open serial port device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
 */
-/*
+
 fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
 if (fd <0) {perror(argv[1]); exit(-1); }
 
 
 if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-/*
 	perror("tcgetattr");
 	exit(-1);
 }
 
-/*
 bzero(&newtio, sizeof(newtio));
 newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
 newtio.c_iflag = IGNPAR;
@@ -295,18 +277,18 @@ newtio.c_oflag = 0;
 
 /* set input mode (non-canonical, no echo,...) */
 
-/*
+
 newtio.c_lflag = 0;
 
 newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-//newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
+newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
 
 
 /*
 VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
 leitura do(s) próximo(s) caracter(es)
 */
-/*
+
 tcflush(fd, TCIOFLUSH);
 
 if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
@@ -315,9 +297,14 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 }
 
 printf("Antes llopen\n");
-//llopen();
-llwrite();
+llopen();
 printf("llopen feito \n");
+unsigned char*message ="ola\n";
+int size_message=4;
+//llwrite(buf,fsize);
+
+llwrite(message,size_message);
+printf("write feito \n");
 fclose(file);
 
 if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
@@ -326,6 +313,6 @@ if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
 }
 
 close(fd);
-*/
+
 return 0;
 }
