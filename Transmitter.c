@@ -3,113 +3,119 @@
 volatile int STOP=FALSE;
 //tries alarm
 int conta_alarm = 1;
-int flag_alarm = 0;
 struct termios oldtio,newtio;
 FILE *file;
 int filesize;
 unsigned char C1=0x40;
+unsigned char *message;
+int sizeof_message;
+int fd;
 
 void atende()                   // atende alarme
 {
 	printf("alarme # %d\n", conta_alarm);
-	flag_alarm=1;
 	conta_alarm++;
+
+	if(conta_alarm == 4)
+		exit(-1);
+	else{
+		int res= write(fd,message,sizeof_message);
+		if(res<0){
+				printf("Cannot write\n");
+		}
+	}
 }
 
-int stateMachineTransmissor(int fd, unsigned char controlByte){
+int stateMachineTransmissor(unsigned char controlByte){
 	int state=0;
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
 	char buf[1];
 	int res;
-	int errorflag = 0;
 
-	while(state !=5 && STOP == FALSE){
+	while(state != 5){
 
 		res =read(fd,buf,1);
 		if(res>0)
 		{
 			switch(state){
-
 				case 0:
-				if(buf[0]!=supervisionPacket[0])
-				errorflag=-1;
+				if(buf[0]==supervisionPacket[0])
+					state=1;
 				break;
 				case 1:
-				if(buf[0]!=supervisionPacket[1])
-				errorflag=-1;
+				if(buf[0]==supervisionPacket[1])
+					state=2;
+				else if(buf[0] == supervisionPacket[0])
+					state=1;
+				else
+					state=0;
 				break;
 				case 2:
-				if(buf[0]!=supervisionPacket[2])
-				errorflag=-1;
+				if(buf[0]==supervisionPacket[2])
+					state=3;
+				else if (buf[0] == supervisionPacket[0])
+					state=1;
+				else
+					state=0;
 				break;
 				case 3:
-				if(buf[0]!=supervisionPacket[3])
-				errorflag=-1;
+				if(buf[0]==supervisionPacket[3])
+					state=4;
+				else
+					state=0;
 				break;
 				case 4:
-				if(buf[0]!=supervisionPacket[4])
-				errorflag=-1;
+				if(buf[0]==supervisionPacket[4])
+					state=5;
+				else
+					state=0;
 				break;
 			};
-			state++;
-
-			if(state == 5 && errorflag == 0){
-				STOP = TRUE;
-				return 0;
-			}
 		}
 		else
 		return -1;
 	}
+	return 0;
 }
 
-int llopen(int fd)
+int llopen()
 {
+
 	int res;
 	unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
-	while(conta_alarm < 4){
 
 		res = write(fd, SET, 5);
-
+		message=SET;
+		sizeof_message=5;
 		if(res < 0){
 			printf("Cannot write\n");
 			return -1;
 		}
 
 		alarm(3);
+		int success = stateMachineTransmissor(C_UA);
 
-		while(!flag_alarm && STOP == FALSE){
-			unsigned char controlByte = C_UA;
-			int success  = stateMachineTransmissor(controlByte, fd);
-			return success;
+		if(success < 0){
+			printf("message wasn't sent\n");
 		}
-
-		if(STOP == TRUE){
-			alarm(0);
-			conta_alarm = 0;
-			STOP = FALSE;
-			flag_alarm = 0;
-			return 0;
-		}
-
 		else
-		flag_alarm = 0;
-	}
+		alarm(0);
 
-	return -1;
+		return 0;
 }
 
-void readPacket_Application(int fd,unsigned char *packet,int packetSize){
+void readPacket_Application(unsigned char *packet,int packetSize){
 	int counter=0;
-	unsigned char *fileData[256];
+	unsigned char *fileData;
 
-	packet=(unsigned char*)malloc(packetSize+4);
-	packet[0]=0x01;
-	packet[1]=counter;
-	packet[2]=(getFileSize(file)-packet[3])/256;
-	packet[3]=getFileSize(file)-256*packet[2];
-
-	memcpy(packet,fileData,packetSize);
+	fileData=(unsigned char*)malloc(packetSize+4);
+	fileData[0]=0x01;
+	fileData[1]=counter;
+	fileData[2]=(getFileSize(file)-fileData[3])/256;
+	fileData[3]=getFileSize(file)-256*fileData[2];
+	printf("Antes do memcpy\n");
+	memcpy(fileData+4,packet,packetSize);
+	printf("No readPacket_Application\n");
 }
 
 unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
@@ -168,7 +174,7 @@ unsigned char *connectionLayer(unsigned char* fileData, unsigned int *newSize){
 	return frameI;
 }
 
-int detectedFrameIConfirmations(int fd){
+int detectedFrameIConfirmations(){
 
 	char buf[5];
 	read(fd,buf,5);
@@ -192,7 +198,7 @@ int detectedFrameIConfirmations(int fd){
 	}
 }
 
-int llwrite(int fd){
+int llwrite(){
 	unsigned char packet[260];
 	unsigned char *frameI, buffer[1000];
 	int res;
@@ -217,7 +223,7 @@ int llwrite(int fd){
 return res;
 }
 
-int transmission(int fd){
+int transmission(){
 	int size = getFileSize(file);
 	int counter, finish, read, res, res2 = 0;
 
@@ -228,12 +234,12 @@ int transmission(int fd){
 
 		res2 = 0;
 
-		res = llopen(fd);
+		res = llopen();
 
 		if(res < 0)
 		return -1;
 
-		res2 = llwrite(fd);
+		res2 = llwrite();
 
 		if(res2 < size)
 		continue;
@@ -248,7 +254,7 @@ int main(int argc, char** argv)
 {
 	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
 
-	int fd,c,length,res;
+	int c,length,res;
 
 	int i, sum = 0, speed = 0;
 
@@ -274,14 +280,16 @@ if(file < 0){
 	printf("Could not open file to be sent\n");
 	exit(-1);
 }
+
 int fsize = getFileSize(file);
-printf("size of file: %d", fsize);
+printf("size of file: %d\n", fsize);
 unsigned char* buf = (unsigned char*)malloc(fsize);
 fread(buf,sizeof(unsigned char),fsize,file);
-
-readPacket_Application(fd,buf,fsize);
-
-llopen(fd);
+printf("fread feito\n");
+readPacket_Application(buf,fsize);
+printf("Antes llopen\n");
+llopen();
+printf("llopen feito \n");
 /*
 Open serial port device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
@@ -321,7 +329,7 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 
 printf("New termios structure set\n");
 
-transmission(fd);
+//transmission(fd);
 fclose(file);
 
 if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
