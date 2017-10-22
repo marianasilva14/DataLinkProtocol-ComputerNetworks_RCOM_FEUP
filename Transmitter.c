@@ -9,7 +9,6 @@ int filesize;
 unsigned char C1=0x40;
 unsigned char *message;
 int sizeof_message;
-int fd;
 
 void atende()                   // atende alarme
 {
@@ -209,45 +208,8 @@ int llwrite(){
 		frameI = (unsigned char*)malloc(size);
 		memcpy(frameI, buffer, size);
 		res=write(fd,frameI,size);
-		/*
-		if(res==0 || res==-1){
-		printf("%d bytes written\n",res);
-		return res;
-	}
-	*/
-
-	/*while(){
-
-}*/
 }
 return res;
-}
-
-int transmission(){
-	int size = getFileSize(file);
-	int counter, finish, read, res, res2 = 0;
-
-	while(finish == 0){
-		if(counter >= 3)
-		return -1;
-		counter++;
-
-		res2 = 0;
-
-		res = llopen();
-
-		if(res < 0)
-		return -1;
-
-		res2 = llwrite();
-
-		if(res2 < size)
-		continue;
-		else
-		finish = 1;
-	}
-
-	return 0;
 }
 
 int main(int argc, char** argv)
@@ -256,7 +218,7 @@ int main(int argc, char** argv)
 
 	int c,length,res;
 
-	int i, sum = 0, speed = 0;
+	int i;
 
 	if ( (argc < 3) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -264,16 +226,6 @@ int main(int argc, char** argv)
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
-	/*
-	unsigned int test_int = 23;
-	unsigned char* test_buf = "isto } e um teste ~ dois";
-	printf("vai entrar layer\n");
-	test_buf = connectionLayer(test_buf,&test_int);
-	for (size_t i = 0; i < 30; i++) {
-	printf("buf stuffed: %x\n",test_buf[i]);
-}
-return 0;
-*/
 
 file = fopen(argv[2],"rb");
 if(file < 0){
@@ -327,9 +279,6 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 	exit(-1);
 }
 
-printf("New termios structure set\n");
-
-//transmission(fd);
 fclose(file);
 
 if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {

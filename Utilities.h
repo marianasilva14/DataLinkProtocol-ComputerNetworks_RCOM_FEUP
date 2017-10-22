@@ -22,6 +22,8 @@
 #define RR(x) (0b00000101 + ((x) << 7))
 #define REJ(y) (0b00000001 + ((y) << 7))
 
+int fd;
+
 
 int getFileSize(FILE* file) {
 	// saving current position
