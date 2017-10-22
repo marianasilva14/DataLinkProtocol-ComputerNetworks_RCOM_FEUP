@@ -10,11 +10,13 @@ int stateMachineReceiver(unsigned char controlByte)
 	int state = 0;
 	int res=0;
 	char buf;
+	printf("Antes do while\n");
 
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-		if(res >0){
+		printf("Depois do read\n");
 
+		if(res > 0){
 			switch(state){
 				case 0:
 				if(buf==supervisionPacket[0])
@@ -116,8 +118,6 @@ unsigned char *readFrameI(int * length){
 
 }
 
-
-
 unsigned char *byteDestuffing(unsigned char  *buf, int *sizeBuf){
 
 	unsigned char *newBuf=(unsigned char*)malloc(*sizeBuf);
@@ -216,55 +216,48 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 	}
 }
 int llread(){
-	//int size;
-	//unsigned char* buf= readFrameI(&siz
-	while (1) {
-			//readFrameI(&siz
-			//buf=byteDestuffing(buf,size);
-	}
+
 
 }
 int llopen(){
 	unsigned char UA[5]={FLAG,A,C_UA,A^C_UA,FLAG};
 	int res;
-
+	printf("Antes da maquina\n");
 	stateMachineReceiver(C_SET);
-
+	printf("Depois da maquina\n");
 
 	res=write(fd,UA,5);
-	if(res<0)
-	{
+	printf("Depois do write\n");
+	if(res<0){
 		printf("Cannot write\n");
 		return -1;
 	}
 
 	return 0;
-
 }
 int main(int argc, char** argv)
 {
 
-	if ( (argc < 3) ||
+	if ( (argc < 2) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
 	(strcmp("/dev/ttyS1", argv[1])!=0) )) {
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
 		exit(1);
 	}
 
 	unsigned char* buf= "isto }~ um teste}";
 	int fsize=16;
-	
+
 	/*
 	Open serial port device for reading and writing and not as controlling tty
 	because we don't want to get killed if linenoise sends CTRL-C.
 	*/
-/*
+
 	fd = open(argv[1], O_RDWR | O_NOCTTY );
 	if (fd <0) {perror(argv[1]); exit(-1); }
 
 	if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-		/*perror("tcgetattr");
+		perror("tcgetattr");
 		exit(-1);
 	}
 
@@ -274,17 +267,17 @@ int main(int argc, char** argv)
 	newtio.c_oflag = 0;
 
 	/* set input mode (non-canonical, no echo,...) */
-/*
+
 	newtio.c_lflag = 0;
 
 	newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-	//newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+	newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
 	/*
 	VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
 	leitura do(s) pr�ximo(s) caracter(es)
 	*/
-/*
+
 	tcflush(fd, TCIOFLUSH);
 
 	if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
@@ -293,14 +286,22 @@ int main(int argc, char** argv)
 	}
 
 	printf("New termios structure set\n");
-	llopen();
 
 	//file = fopen(argv[2],"wb");
+	llopen();
+
+	unsigned char* lido = (unsigned char*)malloc(4);
+	read(fd, lido, 4);
+	int i = 0;
+	for(i = 0; i < 4; i++){
+		printf("lido: %c\n", lido[i]);
+	}
+
 	sleep(3);
 
 
 	tcsetattr(fd,TCSANOW,&oldtio);
 	close(fd);
-	*/
+
 	return 0;
 }
