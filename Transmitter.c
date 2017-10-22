@@ -109,7 +109,6 @@ void readPacket_Application(int fd,unsigned char *packet,int packetSize){
 	packet[2]=(getFileSize(file)-packet[3])/256;
 	packet[3]=getFileSize(file)-256*packet[2];
 
-	read(fd, fileData, packetSize);
 	memcpy(packet,fileData,packetSize);
 }
 
@@ -200,7 +199,6 @@ int llwrite(int fd){
 	unsigned int size=0;
 
 	while(!EOF){
-		readPacket_Application(fd,packet,sizeof(packet));
 		memcpy(buffer, connectionLayer(packet,&size), size);
 		frameI = (unsigned char*)malloc(size);
 		memcpy(frameI, buffer, size);
@@ -251,7 +249,6 @@ int main(int argc, char** argv)
 	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
 
 	int fd,c,length,res;
-	char buf[255];
 
 	int i, sum = 0, speed = 0;
 
@@ -273,7 +270,18 @@ return 0;
 */
 
 file = fopen(argv[2],"rb");
+if(file < 0){
+	printf("Could not open file to be sent\n");
+	exit(-1);
+}
+int fsize = getFileSize(file);
+printf("size of file: %d", fsize);
+unsigned char* buf = (unsigned char*)malloc(fsize);
+fread(buf,sizeof(unsigned char),fsize,file);
 
+readPacket_Application(fd,buf,fsize);
+
+llopen(fd);
 /*
 Open serial port device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
