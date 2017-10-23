@@ -29,12 +29,11 @@ int stateMachineTransmissor(unsigned char controlByte){
 	int state=0;
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
 	char buf;
-	int res;
 
 	while(state != 5){
-		res = read(fd,&buf,1);
-		if(res > 0)
-		{
+		read(fd,&buf,1);
+	//	printf("buf: %x\n ", buf);
+	//	printf("state: %d\n",state);
 			switch(state){
 				case 0:
 				if(buf==supervisionPacket[0])
@@ -70,9 +69,6 @@ int stateMachineTransmissor(unsigned char controlByte){
 				break;
 			}
 		}
-		else
-			continue;
-	}
 	return 0;
 }
 
@@ -208,33 +204,24 @@ int llwrite(){
 		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
 		printf("depois do byteStuffing\n");
-		
-		
-		printf("frameI_length: %d\n", frameI_length);
-	
-		//print frameI
 		int i;
 		for(i=0; i < frameI_length;i++)
-			printf("frameI[%d]: %x\n",i, frameI[i]);
+			printf("frameI: %x\n",frameI[i]);
 
-		printf("Imprimiu direito.\n");
-
-		printf("%x", frameI[2]);
-		if(frameI[2] != C1){
-			printf("Entrou no if\n");
-				if(C1==C_INFO(1))
-					C1=C_INFO(0);
-				else
-					C1=C_INFO(1);
-			}
-		printf("Antes do write\n");
 		res = write(fd,frameI,frameI_length);
-		printf("Antes da maquina\n");
-		stateMachineTransmissor(C1);
-		printf("Depois da maquina\n");
-		free(frameI);
+
+		alarm(3);
+		unsigned char message[5];
+		read(fd, &message, 5);
+
+		for(i=0; i < 5; i++){
+			printf("message: %x\n", message[i]);
 		}
-		
+		alarm(0);
+
+		//free(frameI);
+}
+
 return res;
 }
 
