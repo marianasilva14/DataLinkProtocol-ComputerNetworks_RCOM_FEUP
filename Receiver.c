@@ -62,33 +62,20 @@ unsigned char *readFrameI(int * length){
 
 	unsigned char buf;
 	unsigned char c_info;
-	unsigned int size=1;
+	unsigned int size=0;
 	unsigned char *finalBuf=(unsigned char*)malloc(size);
 	int state = 0;
 	int res;
-	int contador = 0;
 	while (state!=5) {
 
-		//printf("Antes do read: %d\n", contador);
 		res= read(fd, &buf, 1);
-		printf("buf: %x\n", buf);
 		if(res > 0){
-				printf("Depois do read: %d\n", contador);
-				//if(contador<10)
-					contador++;
-					//else
-					//exit(0);
-
 			switch(state){
 				case 0:
-				printf("aqui neste estado 0\n");
-				if(buf==FLAG){
-					printf("entrou no if!!!\n");
+				if(buf==FLAG)
 					state=1;
-				}
 				break;
 				case 1:
-				printf("aqui neste estado 1\n");
 				if(buf==A)
 				state=2;
 				else if(buf == FLAG)
@@ -97,7 +84,6 @@ unsigned char *readFrameI(int * length){
 				state=0;
 				break;
 				case 2:
-				printf("aqui neste estado 2\n");
 				if((buf== C_INFO(0)) || (buf == C_INFO(1))){
 					c_info=buf;
 					state=3;
@@ -108,19 +94,17 @@ unsigned char *readFrameI(int * length){
 				state=0;
 				break;
 				case 3:
-				printf("aqui neste estado 3\n");
 				if(buf==(A^c_info))
 				state=4;
 				else
 				state=0;
 				break;
 				case 4:
-				printf("aqui neste estado 4\n");
 				if(buf==FLAG)
 				state=5;
 				break;
 			}
-			finalBuf[size-1]=buf;
+			finalBuf[size]=buf;
 			size+=1;
 			finalBuf=(unsigned char*)realloc(finalBuf,size);
 
@@ -128,7 +112,7 @@ unsigned char *readFrameI(int * length){
 		else
 			continue;
 	}
-	printf("cheguei aqui\n");
+
 	*length=size;
 	return finalBuf;
 
@@ -138,28 +122,29 @@ unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 
 	unsigned char *newBuf=(unsigned char*)malloc(*sizeBuf);
 	unsigned char *finalBuf;
-	int countSize_newBuf=4;
+	int countSize_newBuf=0;
 	int i,j,k;
 
-	k=4;
-	j=5;
-	for(i=0;i < *sizeBuf;i++)
+	k=0;
+	j=1;
+		for(i=0;i < *sizeBuf;i++)
 	{
-		printf("NO FOR\n");
 		if(buf[k]==0x7d && buf[j]==0x5e){
-			newBuf[i]=0x7e;
+			newBuf[countSize_newBuf]=0x7e;
 			countSize_newBuf++;
+			i++;
 			k++;
 			j++;
 		}
 		else if(buf[k]==0x7d && buf[j]==0x5d){
-			newBuf[i]=0x7d;
+			newBuf[countSize_newBuf]=0x7d;
 			countSize_newBuf++;
+			i++;
 			k++;
 			j++;
 		}
 		else {
-			newBuf[i]=buf[k];
+			newBuf[countSize_newBuf]=buf[k];
 			countSize_newBuf++;
 		}
 		k++;
@@ -167,16 +152,12 @@ unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 	}
 
 	*sizeBuf=countSize_newBuf;
-	printf("sizeBuf: %d\n",*sizeBuf );
 	finalBuf= (unsigned char*)malloc(*sizeBuf);
 	memcpy(finalBuf,newBuf,*sizeBuf);
-	free(newBuf);
-	for( i = 0; i < *sizeBuf; i++){
-		printf("newBuf: %x\n", newBuf[i]);
-	}
-	for( i = 0; i < *sizeBuf; i++){
+	for(i=0; i< *sizeBuf;i++)
 		printf("finalBuf: %x\n", finalBuf[i]);
-	}
+	free(newBuf);
+
 	return finalBuf;
 }
 
@@ -184,12 +165,13 @@ unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 int verifyBCC2(unsigned char *buf, int size){
 	unsigned char BCC2;
 	unsigned char BCC2_XOR=0;
+	int i;
 
 	if(buf[size-1] == FLAG){
 		BCC2 = buf[size-2];
 	}
 
-	for(int i=4;i < size;i++)
+	for(i=4;i < size-2;i++)
 	BCC2_XOR ^= buf[i];
 
 	if(BCC2 == BCC2_XOR)
@@ -215,23 +197,24 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 	unsigned char * supervisionPacket;
 
 	if(verifyBCC2(buf,bufSize)){
-		if(buf[2] == 0x00){
+
+		if(buf[2] == C_INFO(0)){
 			supervisionPacket= completSupervisionPacket(RR(1));
-			write(fd,supervisionPacket,1);
+			write(fd,supervisionPacket,5);
 		}
-		else if(buf[2] == 0x40){
+		else if(buf[2] == C_INFO(1)){
 			supervisionPacket= completSupervisionPacket(RR(0));
-			write(fd,supervisionPacket,1);
+			write(fd,supervisionPacket,5);
 		}
 	}
 	else{
-		if(buf[2] == 0x00){
+		if(buf[2] == C_INFO(0)){
 			supervisionPacket= completSupervisionPacket(REJ(0));
-			write(fd,supervisionPacket,1);
+			write(fd,supervisionPacket,5);
 		}
-		else if(buf[2] == 0x40){
+		else if(buf[2] == C_INFO(1)){
 			supervisionPacket= completSupervisionPacket(REJ(1));
-			write(fd,supervisionPacket,1);
+			write(fd,supervisionPacket,5);
 		}
 	}
 }
@@ -239,15 +222,15 @@ int llread(){
 
 	unsigned char *buf;
 	int size_buf=0;
-	unsigned char *buf2;
+	printf("Antes do readFrameI\n");
 	buf=readFrameI(&size_buf);
-	printf("Antes do byteDestuffing\n");
-	printf("size_buf: %d", size_buf);
+	unsigned char *buf2=(unsigned char*)malloc(size_buf);
+	printf("Depois do readFrameI\n");
 	buf2=byteDestuffing(buf, &size_buf);
+	memcpy(buf, buf2, size_buf);
 	printf("Depois do byteDestuffing\n");
-	memcpy(buf2, buf, size_buf);
-	printf("size_buf: %d", size_buf);
-	//verifyBCC2(buf2, size_buf);
+	sendRRorREJ(buf,size_buf);
+	printf("Depois do verifyBCC2\n");
 
 	return 0;
 }
@@ -319,7 +302,9 @@ int main(int argc, char** argv)
 
 	//file = fopen(argv[2],"wb");
 	llopen();
+		printf("depois do llopen\n");
 	llread();
+	printf("depois do llread\n");
 
 	sleep(3);
 
