@@ -208,24 +208,33 @@ int llwrite(){
 		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
 		printf("depois do byteStuffing\n");
+		
+		
+		printf("frameI_length: %d\n", frameI_length);
+	
+		//print frameI
 		int i;
 		for(i=0; i < frameI_length;i++)
-			printf("frameI: %x\n",frameI[i]);
+			printf("frameI[%d]: %x\n",i, frameI[i]);
+
+		printf("Imprimiu direito.\n");
+
+		printf("%x", frameI[2]);
 		if(frameI[2] != C1){
 			printf("Entrou no if\n");
 				if(C1==C_INFO(1))
 					C1=C_INFO(0);
 				else
 					C1=C_INFO(1);
-
+			}
+		printf("Antes do write\n");
 		res = write(fd,frameI,frameI_length);
 		printf("Antes da maquina\n");
 		stateMachineTransmissor(C1);
 		printf("Depois da maquina\n");
-}
 		free(frameI);
-}
-
+		}
+		
 return res;
 }
 
