@@ -33,10 +33,8 @@ int stateMachineTransmissor(unsigned char controlByte){
 
 	while(state != 5){
 		res = read(fd,&buf,1);
-		printf("depois do read \n");
 		if(res > 0)
 		{
-			printf("antes do switch \n");
 			switch(state){
 				case 0:
 				if(buf==supervisionPacket[0])
@@ -91,11 +89,9 @@ int llopen()
 			printf("Cannot write\n");
 			return -1;
 		}
-		printf("antes do alarme \n");
+
 		alarm(3);
-		printf("antes da maquina \n");
 		stateMachineTransmissor(C_UA);
-			printf("depois da maquina \n");
 		alarm(0);
 
 		return 0;
@@ -116,10 +112,8 @@ unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
 
 	return fileData;
 }
-void addHeader(unsigned char* frameI, int sizeBuf){
-	//allocation of BCC2
+void createHeader(unsigned char* frameI){
 
-	frameI= realloc(frameI,sizeBuf+4);
 	frameI[0]=FLAG;
 	frameI[1]=A;
 	frameI[2]=C1;
@@ -182,54 +176,55 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 frameI[*newSize-1]=FLAG;
 	return frameI;
 }
-/*
-int detectedFrameIConfirmations(){
 
-	char buf[5];
-	read(fd,buf,5);
-
-	//verify FLAG
-	if(buf[0] != 0x7e)
-	return -1;
-	//verify A
-	if(buf[1] != 0x03)
-	return -1;
-	//verify C1
-	if(buf[2] != 0x01){
-		if((buf[1]^buf[2]) != buf[3]){
-			return -1;
-		}
-		if(buf[4] != 0x7e)
-		return -1;
-
-		return -1;
-
-	}
-}*/
-
-int llwrite(unsigned char*  buffer,int length){
-	int res=0;
+int llwrite(){
 	unsigned int frameI_length=0;
-	unsigned char* frameI= malloc(0);
+	unsigned char* file_buffer = (unsigned char*)malloc((sizeof(unsigned char)*PACKET_SIZE));
+	unsigned int length= PACKET_SIZE;
+	int res;
+	int r;
 
-	//add header F,A,C1,BCC1
-	addHeader(frameI,frameI_length);
-	frameI_length+=4;
+	while((r=fread(file_buffer, sizeof(unsigned char), PACKET_SIZE, file))>0){
+		printf("r: %d\n", r);
+		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
+		printf("depois de criar frameI\n");
+		//add header F,A,C1,BCC1
+		createHeader(frameI);
+		frameI_length=4;
 
-	//add buffer to frameI
-	frameI=realloc(frameI,frameI_length+length+2);
-	memcpy(frameI+frameI_length,buffer,length);
-	frameI_length+=length;
+		printf("depois do header\n");
+		//add buffer to frameI
+		frameI=realloc(frameI,frameI_length+length+2);
+		printf("depois do realloc\n");
+		memcpy(frameI+frameI_length,file_buffer,length);
+		printf("depois do memcpy\n");
+		frameI_length+=length;
+		printf("depois do add buffer\n");
+		//add BCC2 to frameI
+		memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
+		frameI_length+=2;
+				printf("depois do BCC2\n");
+		//add byteStuffing to frameI
+		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
+		memcpy(frameI+4,stuffing_array+4,frameI_length);
+		printf("depois do byteStuffing\n");
+		int i;
+		for(i=0; i < frameI_length;i++)
+			printf("frameI: %x\n",frameI[i]);
+		if(frameI[2] != C1){
+			printf("Entrou no if\n");
+				if(C1==C_INFO(1))
+					C1=C_INFO(0);
+				else
+					C1=C_INFO(1);
 
-	//add BCC2 to frameI
-	memcpy(frameI+frameI_length,calculateBCC2(buffer,length),2);
-	frameI_length+=2;
-
-	//add byteStuffing to frameI
-	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
-	memcpy(frameI+4,stuffing_array+4,frameI_length);
-
-	res = write(fd,frameI,frameI_length);
+		res = write(fd,frameI,frameI_length);
+		printf("Antes da maquina\n");
+		stateMachineTransmissor(C1);
+		printf("Depois da maquina\n");
+}
+		free(frameI);
+}
 
 return res;
 }
@@ -253,8 +248,6 @@ if(file < 0){
 
 int fsize = getFileSize(file);
 printf("size of file: %d\n", fsize);
-unsigned char* buf = (unsigned char*)malloc(fsize);
-fread(buf,sizeof(unsigned char),fsize,file);
 
 /*
 Open serial port device for reading and writing and not as controlling tty
@@ -296,12 +289,8 @@ if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
 	exit(-1);
 }
 
-printf("Antes llopen\n");
 llopen();
-printf("llopen feito \n");
-int res= llwrite(buf,fsize);
-printf("write feito:%d \n",res);
-
+llwrite();
 fclose(file);
 
 if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {

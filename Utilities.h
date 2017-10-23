@@ -23,6 +23,7 @@
 #define RR(x) (0b00000101 + ((x) << 7))
 #define REJ(y) (0b00000001 + ((y) << 7))
 #define C_INFO(x) (0b00000000 + ((x) << 6))
+#define PACKET_SIZE 256
 
 int fd;
 
