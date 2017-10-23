@@ -236,37 +236,37 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 	return frameI;
 }
 
-int llwrite(unsigned char* file_buffer, int length){
+int llwrite(unsigned char* file_buffer){
 	unsigned int frameI_length=0;
 
-
+	int length=PACKET_SIZE;
 	unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
 
 	//add header F,A,C1,BCC1
 	createHeader(frameI);
 	frameI_length=4;
-
+printf("entreii\n" );
 	//add buffer to frameI
 	frameI=realloc(frameI,frameI_length+length+2);
 	memcpy(frameI+frameI_length,file_buffer,length);
 	frameI_length+=length;
-
+printf("entreii\n" );
 	//add BCC2 to frameI
 	memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
 	frameI_length+=2;
-
+printf("entreii\n" );
 	//add byteStuffing to frameI
 	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 	memcpy(frameI+4,stuffing_array+4,frameI_length);
 
-
+printf("entreii\n" );
 	write(fd,frameI,frameI_length);
 	memcpy(message, frameI, frameI_length);
 	sizeof_message=frameI_length;
 
 	printf("aqui\n");
 	//alarm(3);
-	readFrameIConfirmations(&frameI_length);
+	//readFrameIConfirmations(&frameI_length);
 	//alarm(0);
 
 	printf("aqui22222222\n");
@@ -335,7 +335,7 @@ int main(int argc, char** argv)
 	}
 
 	llopen();
-	unsigned char * aux_buf=(unsigned char*)malloc(PACKET_SIZE);
+	unsigned char * aux_buf=(unsigned char*)malloc(sizeof(unsigned char)*PACKET_SIZE);
 	int size=0;
 	int count=0;
 	while (size <= fsize) {
@@ -343,7 +343,8 @@ int main(int argc, char** argv)
 		for(int i=0; i < PACKET_SIZE;i++)
 			printf("buf: %x\n", aux_buf[i]);
 
-		int resultado = llwrite(aux_buf,PACKET_SIZE);
+		int resultado = llwrite(aux_buf);
+
 		printf("Resultado %d.\n", resultado);
 		printf("AQUIII\n");
 		count++;
