@@ -16,11 +16,11 @@ void atende()                   // atende alarme
 	conta_alarm++;
 
 	if(conta_alarm == 4)
-		exit(-1);
+	exit(-1);
 	else{
 		int res = write(fd,message,sizeof_message);
 		if(res<0){
-				printf("Cannot write atende\n");
+			printf("Cannot write atende\n");
 		}
 	}
 }
@@ -32,52 +32,51 @@ int stateMachineTransmissor(unsigned char controlByte){
 
 	while(state != 5){
 		read(fd,&buf,1);
-	//	printf("buf: %x\n ", buf);
-	//	printf("state: %d\n",state);
-			switch(state){
-				case 0:
-				if(buf==supervisionPacket[0])
-					state=1;
-				break;
-				case 1:
-				if(buf==supervisionPacket[1])
-					state=2;
-				else if(buf == supervisionPacket[0])
-					state=1;
-				else
-					state=0;
-				break;
-				case 2:
-				if(buf==supervisionPacket[2])
-					state=3;
-				else if (buf == supervisionPacket[0])
-					state=1;
-				else
-					state=0;
-				break;
-				case 3:
-				if(buf==supervisionPacket[3])
-					state=4;
-				else
-					state=0;
-				break;
-				case 4:
-				if(buf==supervisionPacket[4])
-					state=5;
-				else
-					state=0;
-				break;
-			}
+		//	printf("buf: %x\n ", buf);
+		//	printf("state: %d\n",state);
+		switch(state){
+			case 0:
+			if(buf==supervisionPacket[0])
+			state=1;
+			break;
+			case 1:
+			if(buf==supervisionPacket[1])
+			state=2;
+			else if(buf == supervisionPacket[0])
+			state=1;
+			else
+			state=0;
+			break;
+			case 2:
+			if(buf==supervisionPacket[2])
+			state=3;
+			else if (buf == supervisionPacket[0])
+			state=1;
+			else
+			state=0;
+			break;
+			case 3:
+			if(buf==supervisionPacket[3])
+			state=4;
+			else
+			state=0;
+			break;
+			case 4:
+			if(buf==supervisionPacket[4])
+			state=5;
+			else
+			state=0;
+			break;
 		}
+	}
 	return 0;
 }
 
-unsigned char *readFrameIConfirmations(int * length){
+unsigned char *readFrameIConfirmations(unsigned int *length){
 
 	unsigned char buf;
 	unsigned char c_info;
 	unsigned int size=0;
-	int i;
 	unsigned char *finalBuf=(unsigned char*)malloc(size);
 	int state = 0;
 	int res;
@@ -130,7 +129,7 @@ unsigned char *readFrameIConfirmations(int * length){
 			return finalBuf;
 		}
 	}
-
+	printf("chegou:%d\n", res);
 	*length=size;
 	return finalBuf;
 
@@ -142,19 +141,19 @@ int llopen()
 	int res;
 	unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
 
-		res = write(fd, SET, 5);
-		message=SET;
-		sizeof_message=5;
-		if(res < 0){
-			printf("Cannot write llopen\n");
-			return -1;
-		}
+	res = write(fd, SET, 5);
+	message=SET;
+	sizeof_message=5;
+	if(res < 0){
+		printf("Cannot write llopen\n");
+		return -1;
+	}
 
-		alarm(3);
-		stateMachineTransmissor(C_UA);
-		alarm(0);
+	alarm(3);
+	stateMachineTransmissor(C_UA);
+	alarm(0);
 
-		return 0;
+	return 0;
 }
 
 unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
@@ -181,17 +180,17 @@ void createHeader(unsigned char* frameI){
 
 }
 unsigned char *calculateBCC2(unsigned char* fileData, unsigned int newSize){
-unsigned char BCC2=0;
+	unsigned char BCC2=0;
 
-unsigned char* tail= malloc(1);
-int i;
+	unsigned char* tail= malloc(1);
+	int i;
 
-for(i=0;i < newSize;i++)
-BCC2= BCC2 ^ fileData[i];
+	for(i=0;i < newSize;i++)
+	BCC2= BCC2 ^ fileData[i];
 
-tail[0]=BCC2;
+	tail[0]=BCC2;
 
-return tail;
+	return tail;
 
 }
 unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
@@ -233,54 +232,45 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 		j++;
 	}
 
-frameI[*newSize-1]=FLAG;
+	frameI[*newSize-1]=FLAG;
 	return frameI;
 }
 
-int llwrite(){
+int llwrite(unsigned char* file_buffer, int length){
 	unsigned int frameI_length=0;
-	unsigned char* file_buffer = (unsigned char*)malloc((sizeof(unsigned char)*PACKET_SIZE));
-	unsigned int length= PACKET_SIZE;
-	int res;
-	int r;
-	int fsize = getFileSize(file);
-	int size=0;
-
-	while((r=fread(file_buffer, sizeof(unsigned char), PACKET_SIZE, file))>0 && size <= fsize){
-		size+=PACKET_SIZE;
-		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
-
-		//add header F,A,C1,BCC1
-		createHeader(frameI);
-		frameI_length=4;
-
-		//add buffer to frameI
-		frameI=realloc(frameI,frameI_length+length+2);
-		memcpy(frameI+frameI_length,file_buffer,length);
-		frameI_length+=length;
-
-		//add BCC2 to frameI
-		memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
-		frameI_length+=2;
-
-		//add byteStuffing to frameI
-		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
-		memcpy(frameI+4,stuffing_array+4,frameI_length);
 
 
-		res = write(fd,frameI,frameI_length);
-		memcpy(message, frameI, frameI_length);
-		sizeof_message=frameI_length;
+	unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
 
-		printf("aqui\n");
-		//alarm(3);
-		readFrameIConfirmations(&frameI_length);
-		//alarm(0);
+	//add header F,A,C1,BCC1
+	createHeader(frameI);
+	frameI_length=4;
 
-		//free(frameI);
-}
+	//add buffer to frameI
+	frameI=realloc(frameI,frameI_length+length+2);
+	memcpy(frameI+frameI_length,file_buffer,length);
+	frameI_length+=length;
 
-return res;
+	//add BCC2 to frameI
+	memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
+	frameI_length+=2;
+
+	//add byteStuffing to frameI
+	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
+	memcpy(frameI+4,stuffing_array+4,frameI_length);
+
+
+	write(fd,frameI,frameI_length);
+	memcpy(message, frameI, frameI_length);
+	sizeof_message=frameI_length;
+
+	printf("aqui\n");
+	//alarm(3);
+	readFrameIConfirmations(&frameI_length);
+	//alarm(0);
+
+	printf("aqui22222222\n");
+	return 0;
 }
 
 int main(int argc, char** argv)
@@ -293,62 +283,82 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-file = fopen(argv[2],"rb");
-if(file < 0){
-	printf("Could not open file to be sent\n");
-	exit(-1);
-}
+	file = fopen(argv[2],"rb");
+	if(file < 0){
+		printf("Could not open file to be sent\n");
+		exit(-1);
+	}
 
-/*
-Open serial port device for reading and writing and not as controlling tty
-because we don't want to get killed if linenoise sends CTRL-C.
-*/
+	int fsize = getFileSize(file);
+	printf("size of file: %d\n", fsize);
+	unsigned char* buf = (unsigned char*)malloc(fsize);
+	fread(buf,sizeof(unsigned char),fsize,file);
 
-fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
-if (fd <0) {perror(argv[1]); exit(-1); }
+	/*
+	Open serial port device for reading and writing and not as controlling tty
+	because we don't want to get killed if linenoise sends CTRL-C.
+	*/
 
-
-if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-	perror("tcgetattr");
-	exit(-1);
-}
-
-bzero(&newtio, sizeof(newtio));
-newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-newtio.c_iflag = IGNPAR;
-newtio.c_oflag = 0;
-
-/* set input mode (non-canonical, no echo,...) */
+	fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
+	if (fd <0) {perror(argv[1]); exit(-1); }
 
 
-newtio.c_lflag = 0;
+	if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
+		perror("tcgetattr");
+		exit(-1);
+	}
 
-newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
+	bzero(&newtio, sizeof(newtio));
+	newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+	newtio.c_iflag = IGNPAR;
+	newtio.c_oflag = 0;
+
+	/* set input mode (non-canonical, no echo,...) */
 
 
-/*
-VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-leitura do(s) próximo(s) caracter(es)
-*/
+	newtio.c_lflag = 0;
 
-tcflush(fd, TCIOFLUSH);
+	newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
+	newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
 
-if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
-	perror("tcsetattr");
-	exit(-1);
-}
 
-llopen();
-llwrite();
-fclose(file);
+	/*
+	VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
+	leitura do(s) próximo(s) caracter(es)
+	*/
 
-if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-	perror("tcsetattr");
-	exit(-1);
-}
+	tcflush(fd, TCIOFLUSH);
 
-close(fd);
+	if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
+		perror("tcsetattr");
+		exit(-1);
+	}
 
-return 0;
+	llopen();
+	unsigned char * aux_buf=(unsigned char*)malloc(PACKET_SIZE);
+	int size=0;
+	int count=0;
+	while (size <= fsize) {
+		memcpy(aux_buf,&buf[size],PACKET_SIZE);
+		for(int i=0; i < PACKET_SIZE;i++)
+			printf("buf: %x\n", aux_buf[i]);
+
+		int resultado = llwrite(aux_buf,PACKET_SIZE);
+		printf("Resultado %d.\n", resultado);
+		printf("AQUIII\n");
+		count++;
+		printf("Numero de vez: %d", count);
+		size+=PACKET_SIZE;
+	}
+
+	fclose(file);
+
+	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
+		perror("tcsetattr");
+		exit(-1);
+	}
+
+	close(fd);
+
+	return 0;
 }
