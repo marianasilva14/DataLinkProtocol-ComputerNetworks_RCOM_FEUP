@@ -18,9 +18,9 @@ void atende()                   // atende alarme
 	if(conta_alarm == 4)
 		exit(-1);
 	else{
-		int res= write(fd,message,sizeof_message);
+		int res = write(fd,message,sizeof_message);
 		if(res<0){
-				printf("Cannot write\n");
+				printf("Cannot write atende\n");
 		}
 	}
 }
@@ -72,6 +72,70 @@ int stateMachineTransmissor(unsigned char controlByte){
 	return 0;
 }
 
+unsigned char *readFrameIConfirmations(int * length){
+
+	unsigned char buf;
+	unsigned char c_info;
+	unsigned int size=0;
+	int i;
+	unsigned char *finalBuf=(unsigned char*)malloc(size);
+	int state = 0;
+	int res;
+	while (state!=5) {
+
+		res= read(fd, &buf, 1);
+		if(res > 0){
+			switch(state){
+				case 0:
+				if(buf==FLAG)
+				state=1;
+				break;
+				case 1:
+				if(buf==A)
+				state=2;
+				else if(buf == FLAG)
+				state=1;
+				else
+				state=0;
+				break;
+				case 2:
+				if((buf== RR(0)) || (buf == RR(1))){
+					C1=buf;
+					c_info=buf;
+					state=3;
+				}
+				else if (buf == FLAG)
+				state=1;
+				else
+				state=0;
+				break;
+				case 3:
+				if(buf==(A^c_info))
+				state=4;
+				else
+				state=0;
+				break;
+				case 4:
+				if(buf==FLAG)
+				state=5;
+				break;
+			}
+			finalBuf[size]=buf;
+			size+=1;
+			finalBuf=(unsigned char*)realloc(finalBuf,size);
+
+		}
+		else{
+			printf("Else RES:%d\n", res);
+			return finalBuf;
+		}
+	}
+
+	*length=size;
+	return finalBuf;
+
+}
+
 int llopen()
 {
 	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
@@ -82,7 +146,7 @@ int llopen()
 		message=SET;
 		sizeof_message=5;
 		if(res < 0){
-			printf("Cannot write\n");
+			printf("Cannot write llopen\n");
 			return -1;
 		}
 
@@ -179,45 +243,39 @@ int llwrite(){
 	unsigned int length= PACKET_SIZE;
 	int res;
 	int r;
+	int fsize = getFileSize(file);
+	int size=0;
 
-	while((r=fread(file_buffer, sizeof(unsigned char), PACKET_SIZE, file))>0){
-		printf("r: %d\n", r);
+	while((r=fread(file_buffer, sizeof(unsigned char), PACKET_SIZE, file))>0 && size <= fsize){
+		size+=PACKET_SIZE;
 		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
-		printf("depois de criar frameI\n");
+
 		//add header F,A,C1,BCC1
 		createHeader(frameI);
 		frameI_length=4;
 
-		printf("depois do header\n");
 		//add buffer to frameI
 		frameI=realloc(frameI,frameI_length+length+2);
-		printf("depois do realloc\n");
 		memcpy(frameI+frameI_length,file_buffer,length);
-		printf("depois do memcpy\n");
 		frameI_length+=length;
-		printf("depois do add buffer\n");
+
 		//add BCC2 to frameI
 		memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
 		frameI_length+=2;
-				printf("depois do BCC2\n");
+
 		//add byteStuffing to frameI
 		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
-		printf("depois do byteStuffing\n");
-		int i;
-		for(i=0; i < frameI_length;i++)
-			printf("frameI: %x\n",frameI[i]);
+
 
 		res = write(fd,frameI,frameI_length);
+		memcpy(message, frameI, frameI_length);
+		sizeof_message=frameI_length;
 
-		alarm(3);
-		unsigned char message[5];
-		read(fd, &message, 5);
-
-		for(i=0; i < 5; i++){
-			printf("message: %x\n", message[i]);
-		}
-		alarm(0);
+		printf("aqui\n");
+		//alarm(3);
+		readFrameIConfirmations(&frameI_length);
+		//alarm(0);
 
 		//free(frameI);
 }
@@ -229,9 +287,9 @@ int main(int argc, char** argv)
 {
 
 	if ( (argc < 3) ||
-	((strcmp("/dev/ttyS0", argv[1])!=0) &&
-	(strcmp("/dev/ttyS1", argv[1])!=0) )) {
-		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 filename \n");
+	((strcmp("/dev/tnt0", argv[1])!=0) &&
+	(strcmp("/dev/tnt1", argv[1])!=0) )) {
+		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/tnt0 filename \n");
 		exit(1);
 	}
 
@@ -240,10 +298,6 @@ if(file < 0){
 	printf("Could not open file to be sent\n");
 	exit(-1);
 }
-
-
-int fsize = getFileSize(file);
-printf("size of file: %d\n", fsize);
 
 /*
 Open serial port device for reading and writing and not as controlling tty

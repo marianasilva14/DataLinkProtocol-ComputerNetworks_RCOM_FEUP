@@ -192,30 +192,32 @@ unsigned char *completSupervisionPacket(unsigned char controlByte){
 
 void sendRRorREJ(unsigned char *buf,int bufSize){
 
-	unsigned char * supervisionPacket;
+	unsigned char *supervisionPacket=(unsigned char*)malloc(sizeof(unsigned char)*5);
+	int i, res;
 
 	if(verifyBCC2(buf,bufSize)){
 
 		if(buf[2] == C_INFO(0)){
-			supervisionPacket= completSupervisionPacket(RR(1));
+			memcpy(supervisionPacket, completSupervisionPacket(RR(1)), 5);
 			write(fd,supervisionPacket,5);
 		}
 		else if(buf[2] == C_INFO(1)){
-			supervisionPacket= completSupervisionPacket(RR(0));
-			write(fd,supervisionPacket,5);
+			memcpy(supervisionPacket, completSupervisionPacket(RR(0)), 5);
+			res = write(fd,supervisionPacket,5);
+			printf("res: %d\n", res);
 		}
 	}
 	else{
 		if(buf[2] == C_INFO(0)){
-			supervisionPacket= completSupervisionPacket(REJ(0));
+			memcpy(supervisionPacket, completSupervisionPacket(REJ(0)), 5);
 			write(fd,supervisionPacket,5);
 		}
 		else if(buf[2] == C_INFO(1)){
-			supervisionPacket= completSupervisionPacket(REJ(1));
+			memcpy(supervisionPacket, completSupervisionPacket(REJ(1)), 5);
 			write(fd,supervisionPacket,5);
 		}
 	}
-	int i;
+
 	for(i=0;i<5;i++)
 		printf("supervisionPacket: %x\n", supervisionPacket[i]);
 }
@@ -259,9 +261,9 @@ int main(int argc, char** argv)
 {
 
 	if ( (argc < 2) ||
-	((strcmp("/dev/ttyS0", argv[1])!=0) &&
-	(strcmp("/dev/ttyS1", argv[1])!=0) )) {
-		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+	((strcmp("/dev/tnt0", argv[1])!=0) &&
+	(strcmp("/dev/tnt1", argv[1])!=0) )) {
+		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/tnt1\n");
 		exit(1);
 	}
 
