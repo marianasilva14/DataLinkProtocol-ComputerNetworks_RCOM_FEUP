@@ -154,8 +154,6 @@ unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 	*sizeBuf=countSize_newBuf;
 	finalBuf= (unsigned char*)malloc(*sizeBuf);
 	memcpy(finalBuf,newBuf,*sizeBuf);
-	for(i=0; i< *sizeBuf;i++)
-		printf("finalBuf: %x\n", finalBuf[i]);
 	free(newBuf);
 
 	return finalBuf;
@@ -217,13 +215,19 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 			write(fd,supervisionPacket,5);
 		}
 	}
+	int i;
+	for(i=0;i<5;i++)
+		printf("supervisionPacket: %x\n", supervisionPacket[i]);
 }
 int llread(){
 
 	unsigned char *buf;
 	int size_buf=0;
+	int i;
 	printf("Antes do readFrameI\n");
 	buf=readFrameI(&size_buf);
+	for(i=0; i < size_buf;i++)
+		printf("readFrameI: %x\n", buf[i]);
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
 	printf("Depois do readFrameI\n");
 	buf2=byteDestuffing(buf, &size_buf);
