@@ -10,12 +10,8 @@ int stateMachineReceiver(unsigned char controlByte)
 	int state = 0;
 	int res=0;
 	char buf;
-	printf("Antes do while\n");
-
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-		printf("Depois do read\n");
-
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -63,14 +59,13 @@ unsigned char *readFrameI(int * length){
 	unsigned char buf;
 	unsigned char c_info;
 	unsigned int size=0;
-	unsigned char *finalBuf=(unsigned char*)malloc(size);
+	unsigned char *finalBuf;
+	unsigned char *final=(unsigned char*)malloc(10000);
 	int state = 0;
 	int res;
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-		printf("buf,state: %x, %d\n",buf,state);
-
-		if(res > 0){
+			if(res > 0){
 			switch(state){
 				case 0:
 				if(buf==FLAG)
@@ -105,14 +100,16 @@ unsigned char *readFrameI(int * length){
 				state=5;
 				break;
 			}
-			finalBuf[size]=buf;
+
+			memcpy(final+size,&buf,1);
 			size+=1;
-			finalBuf=(unsigned char*)realloc(finalBuf,size);
 		}
 		else
 			continue;
 	}
 
+	finalBuf=(unsigned char*)malloc(size);
+	memcpy(finalBuf,final,size);
 	*length=size;
 	return finalBuf;
 
@@ -193,12 +190,10 @@ unsigned char *completSupervisionPacket(unsigned char controlByte){
 void sendRRorREJ(unsigned char *buf,int bufSize){
 
 	unsigned char *supervisionPacket=(unsigned char*)malloc(sizeof(unsigned char)*5);
-	int i;
 
 	if(verifyBCC2(buf,bufSize)){
 
 		if(buf[2] == C_INFO(0)){
-			printf("1");
 			memcpy(supervisionPacket, completSupervisionPacket(RR(1)), 5);
 			write(fd,supervisionPacket,5);
 
@@ -206,12 +201,10 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 		else if(buf[2] == C_INFO(1)){
 			memcpy(supervisionPacket, completSupervisionPacket(RR(0)), 5);
 			write(fd,supervisionPacket,5);
-			printf("2");
 		}
 	}
 	else{
 		if(buf[2] == C_INFO(0)){
-			printf("3");
 			memcpy(supervisionPacket, completSupervisionPacket(REJ(0)), 5);
 			write(fd,supervisionPacket,5);
 
@@ -219,29 +212,23 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 		else if(buf[2] == C_INFO(1)){
 			memcpy(supervisionPacket, completSupervisionPacket(REJ(1)), 5);
 			write(fd,supervisionPacket,5);
-			printf("4");
 		}
 	}
-
-	for(i=0;i<5;i++)
-		printf("supervisionPacket: %x\n", supervisionPacket[i]);
 }
 
 unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
 	int i;
-	unsigned char* applicationPacket_aux = (unsigned char*)malloc(buffer_size-4);
+
 	int finalSize= buffer_size-SIZE_CONNECTION_LAYER;
-	unsigned char *applicationPacket = (unsigned char*)malloc(sizeof(int)*finalSize);
+	unsigned char* applicationPacket_aux = (unsigned char*)malloc(sizeof(int)*finalSize);
 	int j=0;
 
-	for(i=4; i < buffer_size;i++){
-		applicationPacket[j]=buffer[i];
+	for(i=4; i < finalSize;i++){
+		applicationPacket_aux[j]=buffer[i];
 		j++;
 	}
 
-	memcpy(applicationPacket,applicationPacket_aux,finalSize);
-
-	return applicationPacket;
+	return applicationPacket_aux;
 }
 unsigned char* llread(int *packetSize){
 	unsigned char *appPacket;
@@ -249,32 +236,33 @@ unsigned char* llread(int *packetSize){
 	int size_buf=0;
 	int i;
 
-	printf("Antes do readFrameI\n");
 	buf=readFrameI(&size_buf);
-	for(i=0; i < size_buf;i++)
-	printf("readFrameI: %x\n", buf[i]);
+
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
-	printf("Depois do readFrameI\n");
+
 	buf2=byteDestuffing(buf, &size_buf);
 	memcpy(buf, buf2, size_buf);
-	printf("Depois do byteDestuffing\n");
+
 	sendRRorREJ(buf,size_buf);
-	printf("Depois do verifyBCC2\n");
-	
+
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf;
+
+	for(i=0; i< size_buf;i++)
+		printf("appPacket: %x \n", appPacket[i]);
+
+		printf("\n\n");
 	return appPacket;
 }
 
 int llopen(){
 	unsigned char UA[5]={FLAG,A,C_UA,A^C_UA,FLAG};
 	int res;
-	printf("Antes da maquina\n");
+
 	stateMachineReceiver(C_SET);
-	printf("Depois da maquina\n");
 
 	res=write(fd,UA,5);
-	printf("Depois do write\n");
+
 	if(res<0){
 		printf("Cannot write\n");
 		return -1;
@@ -292,6 +280,7 @@ void createFile(){
 			unsigned char *appPacket;
 			int packetSize=0;
 			appPacket=llread(&packetSize);
+
 			if(appPacket[0]==frameI_START){
 				for(i=0;i<appPacket[2];i++){
 					fsize+=appPacket[3+i];
@@ -300,17 +289,22 @@ void createFile(){
 					filename[i]=appPacket[9+i];
 				}
 					file=fopen(filename,"wb");
+					printf("depois do FOPEN\n");
 			}
-			else if(appPacket[0]==0x00 || appPacket[0]==0x40){
-				int size=(PACKET_SIZE*appPacket[2])+appPacket[3];
-				for(i=0; i < size ;i++){
-						fwrite(&appPacket[4+i],1,sizeof(appPacket[4+i]),file);
-				}
+			else if(appPacket[0]==frameI_END){
+					fclose(file);
+					break;
 			}
 			else{
-				fclose(file);
-				break;
+				printf("DEPOIS DO ELSE IF\n");
+				int size=(PACKET_SIZE*appPacket[2])+appPacket[3];
+				printf("size: %d\n",size);
+				for(i=0; i < size ;i++){
+						fwrite(&appPacket[4+i],1,sizeof(appPacket[4+i]),file);
+							printf("size:%lu \n", sizeof(appPacket[4+i]));
+				}
 			}
+
 	}
 }
 int main(int argc, char** argv)
@@ -360,13 +354,10 @@ int main(int argc, char** argv)
 		exit(-1);
 	}
 
-	printf("New termios structure set\n");
-
 
 	llopen();
-		printf("depois do llopen\n");
 	createFile();
-	printf("depois do llread\n");
+
 
 	sleep(3);
 

@@ -79,7 +79,8 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	unsigned char buf;
 	unsigned char c_info;
 	unsigned int size=0;
-	unsigned char *finalBuf=(unsigned char*)malloc(size);
+	unsigned char *finalBuf;
+	unsigned char *final=(unsigned char*)malloc(10000);
 	int state = 0;
 	int res;
 	while (state!=5) {
@@ -121,20 +122,15 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 				state=5;
 				break;
 			}
-			finalBuf[size]=buf;
+			memcpy(final+size,&buf,1);
 			size+=1;
-			finalBuf=(unsigned char*)realloc(finalBuf,size);
-
 		}
-		else{
-			return finalBuf;
-		}
+		else
+			continue;
 	}
-
+	finalBuf=(unsigned char*)malloc(size);
+	memcpy(finalBuf,final,size);
 	*length=size;
-	int i;
-	for(i=0; i < size;i++)
-		printf("finalBuf: %x\n", finalBuf[i]);
 	return finalBuf;
 
 }
@@ -161,12 +157,16 @@ int llopen()
 }
 
 unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
-	int counter=0;
+	unsigned char c_info;
 	unsigned char *fileData;
+	if(switch_C1==0)
+		c_info=C_INFO(0);
+	else
+		c_info=C_INFO(1);
 
 	fileData=(unsigned char*)malloc(packetSize+4);
 	fileData[0]=0x01;
-	fileData[1]=counter;
+	fileData[1]=c_info;
 	fileData[2]=packetSize/256;
 	fileData[3]=packetSize%256;
 
@@ -323,16 +323,12 @@ int llwrite(unsigned char* file_buffer,int length){
 		memcpy(message,frameI,frameI_length);
 		sizeof_message=frameI_length;
 
-		printf("depois do write\n");
+
 
 		unsigned char* confirmations= readFrameIConfirmations(&frameI_length);
-		int i;
-		for(i=0; i < frameI_length;i++){
-			printf("readFrameIConfirmations: %x\n", confirmations[i]);
-		}
-		printf("depois do confirmations\n");
+
 		alarm(0);
-		printf("depois do alarm\n");
+
 		if(readAnswers(confirmations))
 		canReadNextPacket=1;
 		printf("canReadNextPacket: %d\n",canReadNextPacket);
