@@ -67,8 +67,9 @@ unsigned char *readFrameI(int * length){
 	int state = 0;
 	int res;
 	while (state!=5) {
-
 		res= read(fd, &buf, 1);
+		printf("buf,state: %x, %d\n",buf,state);
+
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -107,7 +108,6 @@ unsigned char *readFrameI(int * length){
 			finalBuf[size]=buf;
 			size+=1;
 			finalBuf=(unsigned char*)realloc(finalBuf,size);
-
 		}
 		else
 			continue;
@@ -260,7 +260,7 @@ unsigned char* llread(int *packetSize){
 	printf("Depois do byteDestuffing\n");
 	sendRRorREJ(buf,size_buf);
 	printf("Depois do verifyBCC2\n");
-
+	
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf;
 	return appPacket;

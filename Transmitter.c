@@ -6,6 +6,7 @@ int conta_alarm = 1;
 struct termios oldtio,newtio;
 int filesize;
 unsigned char C1=0x40;
+int switch_C1=1;
 unsigned char * message;
 int sizeof_message;
 char *filename;
@@ -83,7 +84,7 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	int res;
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-		printf("fd: %d\n",fd );
+		printf("buf,state: %x %d, res: %d\n",buf,state,res );
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -173,7 +174,12 @@ unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
 
 	return fileData;
 }
-void createHeader(unsigned char* frameI){
+void createHeader(unsigned char* frameI,int counter){
+
+	if(counter==0)
+		C1=C_INFO(0);
+	else
+		C1=C_INFO(1);
 
 	frameI[0]=FLAG;
 	frameI[1]=A;
@@ -241,12 +247,24 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 int readAnswers(unsigned char *answers){
 
 	int answer=0;
-	if(answers[2]==RR(0) || answers[2]==RR(1))
-	answer=1;
+	if(answers[2]==RR(0)){
+		switch_C1=0;
+		answer=1;
+	}
+	else if(answers[2]==RR(1)){
+		switch_C1=1;
+		answer=1;
+	}
 
-	else if(answers[2]==REJ(0) || answers[2]==REJ(1))
-	answer=0;
-
+	else if(answers[2]==REJ(0)){
+		switch_C1=1;
+		answer=0;
+	}
+	else{
+		switch_C1=0;
+		answer=0;
+	}
+	printf("switch_C1: %d\n", switch_C1);
 	return answer;
 }
 
@@ -284,7 +302,7 @@ int llwrite(unsigned char* file_buffer,int length){
 
 
 		//add header F,A,C1,BCC1
-		createHeader(frameI);
+		createHeader(frameI,switch_C1);
 		frameI_length=4;
 
 		//add buffer to frameI
