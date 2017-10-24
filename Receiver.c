@@ -193,43 +193,66 @@ unsigned char *completSupervisionPacket(unsigned char controlByte){
 void sendRRorREJ(unsigned char *buf,int bufSize){
 
 	unsigned char *supervisionPacket=(unsigned char*)malloc(sizeof(unsigned char)*5);
-	int i, res;
+	int i;
 
 	if(verifyBCC2(buf,bufSize)){
 
 		if(buf[2] == C_INFO(0)){
+			printf("1");
 			memcpy(supervisionPacket, completSupervisionPacket(RR(1)), 5);
 			write(fd,supervisionPacket,5);
+
 		}
 		else if(buf[2] == C_INFO(1)){
 			memcpy(supervisionPacket, completSupervisionPacket(RR(0)), 5);
-			res = write(fd,supervisionPacket,5);
-			printf("res: %d\n", res);
+			write(fd,supervisionPacket,5);
+			printf("2");
 		}
 	}
 	else{
 		if(buf[2] == C_INFO(0)){
+			printf("3");
 			memcpy(supervisionPacket, completSupervisionPacket(REJ(0)), 5);
 			write(fd,supervisionPacket,5);
+
 		}
 		else if(buf[2] == C_INFO(1)){
 			memcpy(supervisionPacket, completSupervisionPacket(REJ(1)), 5);
 			write(fd,supervisionPacket,5);
+			printf("4");
 		}
 	}
 
 	for(i=0;i<5;i++)
 		printf("supervisionPacket: %x\n", supervisionPacket[i]);
 }
-int llread(){
 
+unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
+	int i;
+	unsigned char* applicationPacket_aux = (unsigned char*)malloc(buffer_size-4);
+	int finalSize= buffer_size-SIZE_CONNECTION_LAYER;
+	unsigned char *applicationPacket = (unsigned char*)malloc(sizeof(int)*finalSize);
+	int j=0;
+
+	for(i=4; i < buffer_size;i++){
+		applicationPacket[j]=buffer[i];
+		j++;
+	}
+
+	memcpy(applicationPacket,applicationPacket_aux,finalSize);
+
+	return applicationPacket;
+}
+unsigned char* llread(int *packetSize){
+	unsigned char *appPacket;
 	unsigned char *buf;
 	int size_buf=0;
 	int i;
+
 	printf("Antes do readFrameI\n");
 	buf=readFrameI(&size_buf);
 	for(i=0; i < size_buf;i++)
-		printf("readFrameI: %x\n", buf[i]);
+	printf("readFrameI: %x\n", buf[i]);
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
 	printf("Depois do readFrameI\n");
 	buf2=byteDestuffing(buf, &size_buf);
@@ -238,7 +261,9 @@ int llread(){
 	sendRRorREJ(buf,size_buf);
 	printf("Depois do verifyBCC2\n");
 
-	return 0;
+	appPacket= applicationPacket(buf,size_buf);
+	*packetSize=size_buf;
+	return appPacket;
 }
 
 int llopen(){
@@ -256,6 +281,37 @@ int llopen(){
 	}
 
 	return 0;
+}
+
+void createFile(){
+	int i;
+	int fsize=0;
+	char *filename=malloc(0);
+	FILE *file;
+	while(1){
+			unsigned char *appPacket;
+			int packetSize=0;
+			appPacket=llread(&packetSize);
+			if(appPacket[0]==frameI_START){
+				for(i=0;i<appPacket[2];i++){
+					fsize+=appPacket[3+i];
+				}
+				for(i=0;i<appPacket[8];i++){
+					filename[i]=appPacket[9+i];
+				}
+					file=fopen(filename,"wb");
+			}
+			else if(appPacket[0]==0x00 || appPacket[0]==0x40){
+				int size=(PACKET_SIZE*appPacket[2])+appPacket[3];
+				for(i=0; i < size ;i++){
+						fwrite(&appPacket[4+i],1,sizeof(appPacket[4+i]),file);
+				}
+			}
+			else{
+				fclose(file);
+				break;
+			}
+	}
 }
 int main(int argc, char** argv)
 {
@@ -306,10 +362,10 @@ int main(int argc, char** argv)
 
 	printf("New termios structure set\n");
 
-	//file = fopen(argv[2],"wb");
+
 	llopen();
 		printf("depois do llopen\n");
-	llread();
+	createFile();
 	printf("depois do llread\n");
 
 	sleep(3);

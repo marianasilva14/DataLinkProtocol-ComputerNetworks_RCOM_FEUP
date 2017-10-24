@@ -4,11 +4,12 @@ volatile int STOP=FALSE;
 //tries alarm
 int conta_alarm = 1;
 struct termios oldtio,newtio;
-FILE *file;
 int filesize;
 unsigned char C1=0x40;
-unsigned char *message;
+unsigned char * message;
 int sizeof_message;
+char *filename;
+FILE *file;
 
 void atende()                   // atende alarme
 {
@@ -81,8 +82,8 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	int state = 0;
 	int res;
 	while (state!=5) {
-
 		res= read(fd, &buf, 1);
+		printf("fd: %d\n",fd );
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -98,7 +99,7 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 				state=0;
 				break;
 				case 2:
-				if((buf== RR(0)) || (buf == RR(1))){
+				if((buf== RR(0)) || (buf == RR(1))  ||  (buf== REJ(0))|| (buf == REJ(1))){
 					C1=buf;
 					c_info=buf;
 					state=3;
@@ -125,12 +126,14 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 
 		}
 		else{
-			printf("Else RES:%d\n", res);
 			return finalBuf;
 		}
 	}
-	printf("chegou:%d\n", res);
+
 	*length=size;
+	int i;
+	for(i=0; i < size;i++)
+		printf("finalBuf: %x\n", finalBuf[i]);
 	return finalBuf;
 
 }
@@ -142,7 +145,7 @@ int llopen()
 	unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
 
 	res = write(fd, SET, 5);
-	message=SET;
+	memcpy(message,SET,5);
 	sizeof_message=5;
 	if(res < 0){
 		printf("Cannot write llopen\n");
@@ -159,15 +162,14 @@ int llopen()
 unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
 	int counter=0;
 	unsigned char *fileData;
-	printf("estou aqui\n");
+
 	fileData=(unsigned char*)malloc(packetSize+4);
 	fileData[0]=0x01;
 	fileData[1]=counter;
 	fileData[2]=packetSize/256;
 	fileData[3]=packetSize%256;
-	printf("Antes do memcpy\n");
+
 	memcpy(fileData+4,packet,packetSize);
-	printf("No readPacket_Application\n");
 
 	return fileData;
 }
@@ -236,46 +238,95 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 	return frameI;
 }
 
-int llwrite(unsigned char* file_buffer){
+int readAnswers(unsigned char *answers){
+
+	int answer=0;
+	if(answers[2]==RR(0) || answers[2]==RR(1))
+	answer=1;
+
+	else if(answers[2]==REJ(0) || answers[2]==REJ(1))
+	answer=0;
+
+	return answer;
+}
+
+unsigned char* creatFrameI_START_OR_END(unsigned char controlByte){
+	unsigned char fsize_1part= DIVIDE_SIZE_1PART(24);
+	unsigned char fsize_2part=DIVIDE_SIZE_2PART(16);
+	unsigned char fsize_3part=DIVIDE_SIZE_3PART(8);
+	unsigned char fsize_4part=DIVIDE_SIZE_4PART(0);
+
+	int start_size=9+strlen(filename);
+	unsigned char* start=(unsigned char*)malloc(start_size);
+
+	int i;
+	start[0]=controlByte;
+	start[1]=0x00;
+	start[2]=sizeof(int);
+	start[3]=fsize_1part;
+	start[4]=fsize_2part;
+	start[5]=fsize_3part;
+	start[6]=fsize_4part;
+	start[7]=0x01;
+	start[8]=strlen(filename);
+	for(i=0; i < strlen(filename);i++){
+		start[9+i]=filename[i];
+	}
+	return start;
+}
+
+int llwrite(unsigned char* file_buffer,int length){
 	unsigned int frameI_length=0;
 
-	int length=PACKET_SIZE;
-	unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
+	int canReadNextPacket=0;
+	while(!canReadNextPacket){
+		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
 
-	//add header F,A,C1,BCC1
-	createHeader(frameI);
-	frameI_length=4;
-printf("entreii\n" );
-	//add buffer to frameI
-	frameI=realloc(frameI,frameI_length+length+2);
-	memcpy(frameI+frameI_length,file_buffer,length);
-	frameI_length+=length;
-printf("entreii\n" );
-	//add BCC2 to frameI
-	memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
-	frameI_length+=2;
-printf("entreii\n" );
-	//add byteStuffing to frameI
-	unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
-	memcpy(frameI+4,stuffing_array+4,frameI_length);
 
-printf("entreii\n" );
-	write(fd,frameI,frameI_length);
-	memcpy(message, frameI, frameI_length);
-	sizeof_message=frameI_length;
+		//add header F,A,C1,BCC1
+		createHeader(frameI);
+		frameI_length=4;
 
-	printf("aqui\n");
-	//alarm(3);
-	//readFrameIConfirmations(&frameI_length);
-	//alarm(0);
+		//add buffer to frameI
+		frameI=realloc(frameI,frameI_length+length+2);
+		memcpy(frameI+frameI_length,file_buffer,length);
+		frameI_length+=length;
 
-	printf("aqui22222222\n");
+		//add BCC2 to frameI
+		memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
+		frameI_length+=2;
+
+		//add byteStuffing to frameI
+		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
+		memcpy(frameI+4,stuffing_array+4,frameI_length);
+
+		alarm(3);
+		write(fd,frameI,frameI_length);
+		memcpy(message,frameI,frameI_length);
+		sizeof_message=frameI_length;
+
+		printf("depois do write\n");
+
+		unsigned char* confirmations= readFrameIConfirmations(&frameI_length);
+		int i;
+		for(i=0; i < frameI_length;i++){
+			printf("readFrameIConfirmations: %x\n", confirmations[i]);
+		}
+		printf("depois do confirmations\n");
+		alarm(0);
+		printf("depois do alarm\n");
+		if(readAnswers(confirmations))
+		canReadNextPacket=1;
+		printf("canReadNextPacket: %d\n",canReadNextPacket);
+	}
+	printf("sai do while\n");
 	return 0;
 }
 
 int main(int argc, char** argv)
 {
 
+	message = malloc(sizeof(unsigned char)*266);
 	if ( (argc < 3) ||
 	((strcmp("/dev/tnt0", argv[1])!=0) &&
 	(strcmp("/dev/tnt1", argv[1])!=0) )) {
@@ -290,6 +341,7 @@ int main(int argc, char** argv)
 	}
 
 	int fsize = getFileSize(file);
+	filename=argv[2];
 	printf("size of file: %d\n", fsize);
 	unsigned char* buf = (unsigned char*)malloc(fsize);
 	fread(buf,sizeof(unsigned char),fsize,file);
@@ -338,20 +390,22 @@ int main(int argc, char** argv)
 	unsigned char * aux_buf=(unsigned char*)malloc(sizeof(unsigned char)*PACKET_SIZE);
 	int size=0;
 	int count=0;
+	int frameI_size=9+strlen(filename);
+	llwrite(creatFrameI_START_OR_END(frameI_START),frameI_size);
 	while (size <= fsize) {
 		memcpy(aux_buf,&buf[size],PACKET_SIZE);
-		for(int i=0; i < PACKET_SIZE;i++)
-			printf("buf: %x\n", aux_buf[i]);
+		//for(int i=0; i < PACKET_SIZE;i++)
+		//printf("buf: %x\n", aux_buf[i]);
+		unsigned char *data = readPacket_Application(aux_buf, PACKET_SIZE);
+		llwrite(data,PACKET_SIZE+4);
 
-		int resultado = llwrite(aux_buf);
-
-		printf("Resultado %d.\n", resultado);
-		printf("AQUIII\n");
+		//printf("Resultado %d.\n", resultado);
+		//printf("AQUIII\n");
 		count++;
 		printf("Numero de vez: %d", count);
 		size+=PACKET_SIZE;
 	}
-
+	llwrite(creatFrameI_START_OR_END(frameI_END),frameI_size);
 	fclose(file);
 
 	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {

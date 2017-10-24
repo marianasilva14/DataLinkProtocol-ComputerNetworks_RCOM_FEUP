@@ -24,6 +24,12 @@
 #define REJ(y) (0b00000001 + ((y) << 7))
 #define C_INFO(x) (0b00000000 + ((x) << 6))
 #define PACKET_SIZE 256
+#define DIVIDE_SIZE_1PART(z) ((z) >> 24)%PACKET_SIZE
+#define DIVIDE_SIZE_2PART(z) ((z) >> 16)%PACKET_SIZE
+#define DIVIDE_SIZE_3PART(z) ((z) >> 8)%PACKET_SIZE
+#define DIVIDE_SIZE_4PART(z) ((z) >> 0)%PACKET_SIZE
+#define frameI_START 0x02
+#define frameI_END 0x03
 
 int fd;
 
