@@ -85,7 +85,7 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	int res;
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-		printf("buf,state: %x %d, res: %d\n",buf,state,res );
+
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -290,6 +290,7 @@ unsigned char* creatFrameI_START_OR_END(unsigned char controlByte){
 	for(i=0; i < strlen(filename);i++){
 		start[9+i]=filename[i];
 	}
+
 	return start;
 }
 
@@ -299,8 +300,7 @@ int llwrite(unsigned char* file_buffer,int length){
 	int canReadNextPacket=0;
 	while(!canReadNextPacket){
 		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
-
-
+		int i;
 		//add header F,A,C1,BCC1
 		createHeader(frameI,switch_C1);
 		frameI_length=4;
@@ -318,12 +318,12 @@ int llwrite(unsigned char* file_buffer,int length){
 		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
 
+		for(i=0;i<frameI_length;i++)
+			printf("frameI: %x\n", frameI[i] );
 		alarm(3);
 		write(fd,frameI,frameI_length);
 		memcpy(message,frameI,frameI_length);
 		sizeof_message=frameI_length;
-
-
 
 		unsigned char* confirmations= readFrameIConfirmations(&frameI_length);
 
@@ -356,6 +356,7 @@ int main(int argc, char** argv)
 
 	int fsize = getFileSize(file);
 	filename=argv[2];
+	printf("filename: %s\n", filename);
 	printf("size of file: %d\n", fsize);
 	unsigned char* buf = (unsigned char*)malloc(fsize);
 	fread(buf,sizeof(unsigned char),fsize,file);
@@ -408,13 +409,10 @@ int main(int argc, char** argv)
 	llwrite(creatFrameI_START_OR_END(frameI_START),frameI_size);
 	while (size <= fsize) {
 		memcpy(aux_buf,&buf[size],PACKET_SIZE);
-		//for(int i=0; i < PACKET_SIZE;i++)
-		//printf("buf: %x\n", aux_buf[i]);
+
 		unsigned char *data = readPacket_Application(aux_buf, PACKET_SIZE);
 		llwrite(data,PACKET_SIZE+4);
 
-		//printf("Resultado %d.\n", resultado);
-		//printf("AQUIII\n");
 		count++;
 		printf("Numero de vez: %d", count);
 		size+=PACKET_SIZE;

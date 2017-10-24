@@ -111,6 +111,7 @@ unsigned char *readFrameI(int * length){
 	finalBuf=(unsigned char*)malloc(size);
 	memcpy(finalBuf,final,size);
 	*length=size;
+
 	return finalBuf;
 
 }
@@ -223,7 +224,7 @@ unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
 	unsigned char* applicationPacket_aux = (unsigned char*)malloc(sizeof(int)*finalSize);
 	int j=0;
 
-	for(i=4; i < finalSize;i++){
+	for(i=4; i < buffer_size-2;i++){
 		applicationPacket_aux[j]=buffer[i];
 		j++;
 	}
@@ -234,7 +235,7 @@ unsigned char* llread(int *packetSize){
 	unsigned char *appPacket;
 	unsigned char *buf;
 	int size_buf=0;
-	int i;
+
 
 	buf=readFrameI(&size_buf);
 
@@ -245,13 +246,10 @@ unsigned char* llread(int *packetSize){
 
 	sendRRorREJ(buf,size_buf);
 
+
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf;
 
-	for(i=0; i< size_buf;i++)
-		printf("appPacket: %x \n", appPacket[i]);
-
-		printf("\n\n");
 	return appPacket;
 }
 
@@ -287,24 +285,20 @@ void createFile(){
 				}
 				for(i=0;i<appPacket[8];i++){
 					filename[i]=appPacket[9+i];
+
 				}
+
 					file=fopen(filename,"wb");
-					printf("depois do FOPEN\n");
 			}
 			else if(appPacket[0]==frameI_END){
 					fclose(file);
 					break;
 			}
 			else{
-				printf("DEPOIS DO ELSE IF\n");
-				int size=(PACKET_SIZE*appPacket[2])+appPacket[3];
-				printf("size: %d\n",size);
-				for(i=0; i < size ;i++){
-						fwrite(&appPacket[4+i],1,sizeof(appPacket[4+i]),file);
-							printf("size:%lu \n", sizeof(appPacket[4+i]));
-				}
+				fwrite(appPacket,sizeof(unsigned char),packetSize,file);
+				//for(i=0;i < packetSize;i++)
+				//fwrite(&appPacket[i],1,sizeof(unsigned char),file);
 			}
-
 	}
 }
 int main(int argc, char** argv)
