@@ -8,6 +8,7 @@ int switch_C1=1;
 unsigned char * message;
 int sizeof_message;
 char *filename;
+unsigned char* buf;
 int fsize;
 FILE *file;
 
