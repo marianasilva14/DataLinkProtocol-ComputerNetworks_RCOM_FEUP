@@ -34,8 +34,6 @@ int stateMachineTransmissor(unsigned char controlByte){
 
 	while(state != 5){
 		read(fd,&buf,1);
-		//	printf("buf: %x\n ", buf);
-		//	printf("state: %d\n",state);
 		switch(state){
 			case 0:
 			if(buf==supervisionPacket[0])
@@ -264,7 +262,6 @@ int readAnswers(unsigned char *answers){
 		switch_C1=0;
 		answer=0;
 	}
-	printf("switch_C1: %d\n", switch_C1);
 	return answer;
 }
 
@@ -318,8 +315,6 @@ int llwrite(unsigned char* file_buffer,int length){
 		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
 
-		for(i=0;i<frameI_length;i++)
-			printf("frameI: %x\n", frameI[i] );
 		alarm(3);
 		write(fd,frameI,frameI_length);
 		memcpy(message,frameI,frameI_length);
@@ -331,19 +326,48 @@ int llwrite(unsigned char* file_buffer,int length){
 
 		if(readAnswers(confirmations))
 		canReadNextPacket=1;
-		printf("canReadNextPacket: %d\n",canReadNextPacket);
 	}
-	printf("sai do while\n");
 	return 0;
 }
+
+int llclose()
+{
+	int res;
+	unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
+
+	res = write(fd, DISC, 5);
+	memcpy(message,DISC,5);
+	sizeof_message=5;
+	if(res < 0){
+		printf("Cannot write llclose\n");
+		return -1;
+	}
+
+	alarm(3);
+	stateMachineTransmissor(C_DISC);
+	alarm(0);
+
+	unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};
+
+	res = write(fd, UA, 5);
+	memcpy(message,DISC,5);
+	sizeof_message=5;
+	if(res < 0){
+		printf("Cannot write llclose\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 
 int main(int argc, char** argv)
 {
 
 	message = malloc(sizeof(unsigned char)*266);
 	if ( (argc < 3) ||
-	((strcmp("/dev/tnt0", argv[1])!=0) &&
-	(strcmp("/dev/tnt1", argv[1])!=0) )) {
+	((strcmp("/dev/ttyS0", argv[1])!=0) &&
+	(strcmp("/dev/ttyS1", argv[1])!=0) )) {
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/tnt0 filename \n");
 		exit(1);
 	}
@@ -356,8 +380,6 @@ int main(int argc, char** argv)
 
 	int fsize = getFileSize(file);
 	filename=argv[2];
-	printf("filename: %s\n", filename);
-	printf("size of file: %d\n", fsize);
 	unsigned char* buf = (unsigned char*)malloc(fsize);
 	fread(buf,sizeof(unsigned char),fsize,file);
 
@@ -414,10 +436,10 @@ int main(int argc, char** argv)
 		llwrite(data,PACKET_SIZE+4);
 
 		count++;
-		printf("Numero de vez: %d", count);
 		size+=PACKET_SIZE;
 	}
 	llwrite(creatFrameI_START_OR_END(frameI_END),frameI_size);
+	llclose();
 	fclose(file);
 
 	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
