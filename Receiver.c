@@ -1,9 +1,13 @@
 #include "Utilities.h"
 
-volatile int STOP=FALSE;
 struct termios oldtio,newtio;
 FILE *file;
 
+/**
+* State machine where SET is read that is sent by the transmitter, in the connection establishment phase
+* @param controlByte
+* @return 0 if the reading is doing
+*/
 int stateMachineReceiver(unsigned char controlByte)
 {
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
@@ -54,6 +58,11 @@ int stateMachineReceiver(unsigned char controlByte)
 	return 0;
 }
 
+/**
+* State machine where the frame sent by the sender is read in the file transfer stage
+* @param length of array read
+* @return array read
+*/
 unsigned char *readFrameI(int * length){
 
 	unsigned char buf;
@@ -63,8 +72,10 @@ unsigned char *readFrameI(int * length){
 	unsigned char *final=(unsigned char*)malloc(10000);
 	int state = 0;
 	int res;
+
 	while (state!=5) {
 		res= read(fd, &buf, 1);
+
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -100,7 +111,6 @@ unsigned char *readFrameI(int * length){
 					state=5;
 				break;
 			}
-
 			memcpy(final+size,&buf,1);
 			size++;
 		}
@@ -113,9 +123,14 @@ unsigned char *readFrameI(int * length){
 	*length=size;
 
 	return finalBuf;
-
 }
 
+/**
+* Function responsible for the inverse processor to the byte stuffing (transparency mechanism), so that the message is read correctly
+* @param array received from the transmitter
+* @param size of the array received from the transmitter
+* @return array destuffed
+*/
 unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 
 	unsigned char *newBuf=(unsigned char*)malloc(*sizeBuf);
@@ -157,7 +172,12 @@ unsigned char *byteDestuffing(unsigned char *buf, int *sizeBuf){
 	return finalBuf;
 }
 
-
+/**
+* Function that verifies if the BCC2 is correct and corresponds to the xor of the remaining elements except the header
+* @param array received from the transmitter
+* @param size of the array received from the transmitter
+* @return returns 1 if BCC2 is correct, returns 0 otherwise
+*/
 int verifyBCC2(unsigned char *buf, int size){
 	unsigned char BCC2;
 	unsigned char BCC2_XOR=0;
@@ -176,7 +196,12 @@ int verifyBCC2(unsigned char *buf, int size){
 		return 0;
 }
 
-unsigned char *completSupervisionPacket(unsigned char controlByte){
+/**
+*	Complete the response header given by the receiver
+* @param control byte that can be RR (0), RR (1), REJ (0), REJ (1)
+* @return array with header
+*/
+unsigned char *completeSupervisionPacket(unsigned char controlByte){
 
 	unsigned char *supervisionPacket=(unsigned char*)malloc(sizeof(unsigned char)*5);
 	supervisionPacket[0]=FLAG;
@@ -188,6 +213,13 @@ unsigned char *completSupervisionPacket(unsigned char controlByte){
 	return supervisionPacket;
 }
 
+/**
+* If BCC2 is correct, the receiver sends RR. If you receive from the transmitter a 0x00 sends an RR (1), if it receives a 0x40 it sends
+* an RR (0). If it is wrong, the receiver sends a REJ. It is REJ (0) if you receive a 0x00 from the transmitter, REJ (1) if you receive
+* a 0x40.
+* @param array received from the transmitter
+* @param size of the array received from the transmitter
+*/
 void sendRRorREJ(unsigned char *buf,int bufSize){
 
 	unsigned char *supervisionPacket=(unsigned char*)malloc(sizeof(unsigned char)*5);
@@ -195,28 +227,33 @@ void sendRRorREJ(unsigned char *buf,int bufSize){
 	if(verifyBCC2(buf,bufSize)){
 
 		if(buf[2] == C_INFO(0)){
-			memcpy(supervisionPacket, completSupervisionPacket(RR(1)), 5);
+			memcpy(supervisionPacket, completeSupervisionPacket(RR(1)), 5);
 			write(fd,supervisionPacket,5);
 
 		}
 		else if(buf[2] == C_INFO(1)){
-			memcpy(supervisionPacket, completSupervisionPacket(RR(0)), 5);
+			memcpy(supervisionPacket, completeSupervisionPacket(RR(0)), 5);
 			write(fd,supervisionPacket,5);
 		}
 	}
 	else{
 		if(buf[2] == C_INFO(0)){
-			memcpy(supervisionPacket, completSupervisionPacket(REJ(0)), 5);
+			memcpy(supervisionPacket, completeSupervisionPacket(REJ(0)), 5);
 			write(fd,supervisionPacket,5);
 
 		}
 		else if(buf[2] == C_INFO(1)){
-			memcpy(supervisionPacket, completSupervisionPacket(REJ(1)), 5);
+			memcpy(supervisionPacket, completeSupervisionPacket(REJ(1)), 5);
 			write(fd,supervisionPacket,5);
 		}
 	}
 }
 
+/**
+* Removes header to array received by transmitter
+* @param array received from the transmitter
+* @return array without header
+*/
 unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
 	int i;
 
@@ -231,11 +268,16 @@ unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
 
 	return applicationPacket_aux;
 }
+
+/**
+*	Main function of transferring files on the receiver side, where it deals with the reception of the frames
+* @param length of array read
+* @return array read
+*/
 unsigned char* llread(int *packetSize){
 	unsigned char *appPacket;
 	unsigned char *buf;
 	int size_buf=0;
-
 
 	buf=readFrameI(&size_buf);
 
@@ -247,17 +289,16 @@ unsigned char* llread(int *packetSize){
 
 	sendRRorREJ(buf,size_buf);
 
-
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf - SIZE_CONNECTION_LAYER;
-
-	/*
-	*Não estávamos a atualizar devidamente o tamanho do appPacket
-	*/
 
 	return appPacket;
 }
 
+/**
+*	Connection establishment where the UE is sent and received SET
+* @return -1 if can't write UA
+*/
 int llopen(){
 	unsigned char UA[5]={FLAG,A,C_UA,A^C_UA,FLAG};
 	int res;
@@ -274,6 +315,10 @@ int llopen(){
 	return 0;
 }
 
+/**
+* Main cycle where the received array of the transmitter is processed, if it is identified the START frame is created and written the
+* result file. If you receive the START frame, the file is closed.
+*/
 void createFile(){
 	int i;
 	int fsize=0;
@@ -283,7 +328,6 @@ void createFile(){
 			unsigned char *appPacket;
 			int packetSize=0;
 			appPacket=llread(&packetSize);
-
 
 			if(appPacket[0]==frameI_START){
 				for(i=0;i<appPacket[2];i++){
@@ -304,9 +348,9 @@ void createFile(){
 			}
 	}
 }
+
 int main(int argc, char** argv)
 {
-
 	if ( (argc < 2) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
 	(strcmp("/dev/ttYS1", argv[1])!=0) )) {
@@ -351,13 +395,10 @@ int main(int argc, char** argv)
 		exit(-1);
 	}
 
-
 	llopen();
 	createFile();
 
-
 	sleep(3);
-
 
 	tcsetattr(fd,TCSANOW,&oldtio);
 	close(fd);
