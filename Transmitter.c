@@ -1,8 +1,6 @@
 #include "Utilities.h"
 
-volatile int STOP=FALSE;
-//tries alarm
-int conta_alarm = 1;
+int counter_alarm = 1;
 struct termios oldtio,newtio;
 int filesize;
 unsigned char C1=0x40;
@@ -10,23 +8,32 @@ int switch_C1=1;
 unsigned char * message;
 int sizeof_message;
 char *filename;
+int fsize;
 FILE *file;
 
-void atende()                   // atende alarme
+/**
+* Handler the alarm
+*/
+void handler_alarm()
 {
-	printf("alarme # %d\n", conta_alarm);
-	conta_alarm++;
+	printf("alarm # %d\n", counter_alarm);
+	counter_alarm++;
 
-	if(conta_alarm == 4)
+	if(counter_alarm == 4)
 	exit(-1);
 	else{
 		int res = write(fd,message,sizeof_message);
 		if(res<0){
-			printf("Cannot write atende\n");
+			printf("Cannot write handler_alarm\n");
 		}
 	}
 }
 
+/**
+* State machine used to read the information received
+* @param controlByte
+* @return zero when finished
+*/
 int stateMachineTransmissor(unsigned char controlByte){
 	int state=0;
 	char supervisionPacket[5] = {FLAG, A, controlByte, A^controlByte, FLAG};
@@ -72,6 +79,11 @@ int stateMachineTransmissor(unsigned char controlByte){
 	return 0;
 }
 
+/**
+* State machine used to read the supervision packet received
+* @param length size of read buffer
+* @return supervision packet
+*/
 unsigned char *readFrameIConfirmations(unsigned int *length){
 
 	unsigned char buf;
@@ -133,9 +145,13 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 
 }
 
+/**
+* Connection establishment where the set is sent and the UA received
+* @return zero when finished
+*/
 int llopen()
 {
-	(void)signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+	(void)signal(SIGALRM, handler_alarm);
 	int res;
 	unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
 
@@ -154,7 +170,13 @@ int llopen()
 	return 0;
 }
 
-unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
+/**
+* Add packet application to the read packet
+* @param packet read packet
+* @param packetSize size of read packet
+* @return packet with the application packet
+*/
+unsigned char* addApplication_Packet(unsigned char *packet,int packetSize){
 	unsigned char c_info;
 	unsigned char *fileData;
 	if(switch_C1==0)
@@ -172,6 +194,12 @@ unsigned char* readPacket_Application(unsigned char *packet,int packetSize){
 
 	return fileData;
 }
+
+/**
+* Create header
+* @param frameI frame
+* @param counter variable used to know the value of C1
+*/
 void createHeader(unsigned char* frameI,int counter){
 
 	if(counter==0)
@@ -185,13 +213,20 @@ void createHeader(unsigned char* frameI,int counter){
 	frameI[3]=A^C1;
 
 }
-unsigned char *calculateBCC2(unsigned char* fileData, unsigned int newSize){
+
+/**
+* Function that calculates BCC2
+* @param fileData data packet
+* @param size size of data packet
+* @return an array with the value of bcc2
+*/
+unsigned char *calculateBCC2(unsigned char* fileData, unsigned int size){
 	unsigned char BCC2=0;
 
 	unsigned char* tail= malloc(1);
 	int i;
 
-	for(i=0;i < newSize;i++)
+	for(i=0;i < size;i++)
 	BCC2= BCC2 ^ fileData[i];
 
 	tail[0]=BCC2;
@@ -199,6 +234,13 @@ unsigned char *calculateBCC2(unsigned char* fileData, unsigned int newSize){
 	return tail;
 
 }
+
+/**
+* Function that does stuffing to the received data packet
+* @param fileData data packet
+* @param newSize size of data packet
+* @return data packet with the bytes stuffing
+*/
 unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 
 	int k,j,i;
@@ -210,10 +252,8 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 		(*newSize)++;
 	}
 
-
 	unsigned char* frameI=(unsigned char*)malloc(*newSize+1);
 
-	//byte frameIing
 	k=4;
 	j=5;
 	for(i=0;i < *newSize-5;i++)
@@ -242,6 +282,11 @@ unsigned char * byteStuffing(unsigned char* fileData, unsigned int *newSize){
 	return frameI;
 }
 
+/**
+* Function that switches C1
+* @param answers supervision packet
+* @return 1 if can read the next packet
+*/
 int readAnswers(unsigned char *answers){
 
 	int answer=0;
@@ -265,6 +310,11 @@ int readAnswers(unsigned char *answers){
 	return answer;
 }
 
+/**
+* Create frame start or end
+* @param controlByte controlByte of frame start or end
+* @return frame start or end
+*/
 unsigned char* creatFrameI_START_OR_END(unsigned char controlByte){
 	unsigned char fsize_1part= DIVIDE_SIZE_1PART(24);
 	unsigned char fsize_2part=DIVIDE_SIZE_2PART(16);
@@ -291,6 +341,12 @@ unsigned char* creatFrameI_START_OR_END(unsigned char controlByte){
 	return start;
 }
 
+/**
+* Main cycle of transfer of data transfer. Deals with sending the frames to the receiver
+* @param file_buffer data packet received
+* @param length size of data packet
+* @return zero when finished
+*/
 int llwrite(unsigned char* file_buffer,int length){
 	unsigned int frameI_length=0;
 
@@ -330,6 +386,10 @@ int llwrite(unsigned char* file_buffer,int length){
 	return 0;
 }
 
+/**
+* Sends the DISC and the UA and ends the program
+* @return zero when finished
+*/
 int llclose()
 {
 	int res;
@@ -359,7 +419,26 @@ int llclose()
 
 	return 0;
 }
+/**
+* Cycle responsible for sending frames
+*/
+void sendFrames(){
+	unsigned char * aux_buf=(unsigned char*)malloc(sizeof(unsigned char)*PACKET_SIZE);
+	int size=0;
+	int count=0;
+	int frameI_size=9+strlen(filename);
+	llwrite(creatFrameI_START_OR_END(frameI_START),frameI_size);
+	while (size <= fsize) {
+		memcpy(aux_buf,&buf[size],PACKET_SIZE);
 
+		unsigned char *data = addApplication_Packet(aux_buf, PACKET_SIZE);
+		llwrite(data,PACKET_SIZE+4);
+
+		count++;
+		size+=PACKET_SIZE;
+	}
+	llwrite(creatFrameI_START_OR_END(frameI_END),frameI_size);
+}
 
 int main(int argc, char** argv)
 {
@@ -378,7 +457,7 @@ int main(int argc, char** argv)
 		exit(-1);
 	}
 
-	int fsize = getFileSize(file);
+	fsize = getFileSize(file);
 	filename=argv[2];
 	unsigned char* buf = (unsigned char*)malloc(fsize);
 	fread(buf,sizeof(unsigned char),fsize,file);
@@ -424,21 +503,7 @@ int main(int argc, char** argv)
 	}
 
 	llopen();
-	unsigned char * aux_buf=(unsigned char*)malloc(sizeof(unsigned char)*PACKET_SIZE);
-	int size=0;
-	int count=0;
-	int frameI_size=9+strlen(filename);
-	llwrite(creatFrameI_START_OR_END(frameI_START),frameI_size);
-	while (size <= fsize) {
-		memcpy(aux_buf,&buf[size],PACKET_SIZE);
-
-		unsigned char *data = readPacket_Application(aux_buf, PACKET_SIZE);
-		llwrite(data,PACKET_SIZE+4);
-
-		count++;
-		size+=PACKET_SIZE;
-	}
-	llwrite(creatFrameI_START_OR_END(frameI_END),frameI_size);
+	sendFrames();
 	llclose();
 	fclose(file);
 
