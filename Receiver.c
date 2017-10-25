@@ -112,8 +112,6 @@ unsigned char *readFrameI(int * length){
 	memcpy(finalBuf,final,size);
 	*length=size;
 
-	printf("SIZE FRAMEI: %d\n", size);
-
 	return finalBuf;
 
 }
@@ -245,8 +243,6 @@ unsigned char* llread(int *packetSize){
 
 	buf2=byteDestuffing(buf, &size_buf);
 
-	printf("SIZEBUF after destuffing: %d\n", size_buf);
-
 	memcpy(buf, buf2, size_buf);
 
 	sendRRorREJ(buf,size_buf);
@@ -258,8 +254,6 @@ unsigned char* llread(int *packetSize){
 	/*
 	*Não estávamos a atualizar devidamente o tamanho do appPacket
 	*/
-
-	printf("SIZE AFTER APPLICATION: %d", *packetSize);
 
 	return appPacket;
 }
@@ -290,15 +284,15 @@ void createFile(){
 			int packetSize=0;
 			appPacket=llread(&packetSize);
 
+
 			if(appPacket[0]==frameI_START){
 				for(i=0;i<appPacket[2];i++){
 					fsize+=appPacket[3+i];
+
 				}
 				for(i=0;i<appPacket[8];i++){
 					filename[i]=appPacket[9+i];
-
 				}
-					printf("%s", filename);
 					file=fopen(filename,"wb");
 			}
 			else if(appPacket[0]==frameI_END){
@@ -306,12 +300,7 @@ void createFile(){
 					break;
 			}
 			else{
-				//fwrite(appPacket,sizeof(unsigned char),packetSize,file);
-				printf("\n\nPACKETSIZE: %d\n\n", packetSize);
-				//for(i=10;i < packetSize;i++)
-				//	fwrite(&appPacket[i],1,sizeof(unsigned char),file);
-				fwrite(appPacket,sizeof(unsigned char),4,file);
-				fwrite(appPacket+8,sizeof(unsigned char),packetSize-8, file);
+				fwrite(appPacket+4,sizeof(unsigned char),packetSize-4,file);
 			}
 	}
 }
@@ -319,8 +308,8 @@ int main(int argc, char** argv)
 {
 
 	if ( (argc < 2) ||
-	((strcmp("/dev/tnt0", argv[1])!=0) &&
-	(strcmp("/dev/tnt1", argv[1])!=0) )) {
+	((strcmp("/dev/ttyS0", argv[1])!=0) &&
+	(strcmp("/dev/ttYS1", argv[1])!=0) )) {
 		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/tnt1\n");
 		exit(1);
 	}
