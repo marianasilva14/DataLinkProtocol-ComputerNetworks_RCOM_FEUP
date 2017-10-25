@@ -65,7 +65,7 @@ unsigned char *readFrameI(int * length){
 	int res;
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-			if(res > 0){
+		if(res > 0){
 			switch(state){
 				case 0:
 				if(buf==FLAG)
@@ -73,11 +73,11 @@ unsigned char *readFrameI(int * length){
 				break;
 				case 1:
 				if(buf==A)
-				state=2;
+					state=2;
 				else if(buf == FLAG)
-				state=1;
+					state=1;
 				else
-				state=0;
+					state=0;
 				break;
 				case 2:
 				if((buf== C_INFO(0)) || (buf == C_INFO(1))){
@@ -85,24 +85,24 @@ unsigned char *readFrameI(int * length){
 					state=3;
 				}
 				else if (buf == FLAG)
-				state=1;
+					state=1;
 				else
-				state=0;
+					state=0;
 				break;
 				case 3:
 				if(buf==(A^c_info))
-				state=4;
+					state=4;
 				else
-				state=0;
+					state=0;
 				break;
 				case 4:
 				if(buf==FLAG)
-				state=5;
+					state=5;
 				break;
 			}
 
 			memcpy(final+size,&buf,1);
-			size+=1;
+			size++;
 		}
 		else
 			continue;
@@ -111,6 +111,8 @@ unsigned char *readFrameI(int * length){
 	finalBuf=(unsigned char*)malloc(size);
 	memcpy(finalBuf,final,size);
 	*length=size;
+
+	printf("SIZE FRAMEI: %d\n", size);
 
 	return finalBuf;
 
@@ -221,7 +223,7 @@ unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
 	int i;
 
 	int finalSize= buffer_size-SIZE_CONNECTION_LAYER;
-	unsigned char* applicationPacket_aux = (unsigned char*)malloc(sizeof(int)*finalSize);
+	unsigned char* applicationPacket_aux = (unsigned char*)malloc(finalSize);
 	int j=0;
 
 	for(i=4; i < buffer_size-2;i++){
@@ -242,13 +244,22 @@ unsigned char* llread(int *packetSize){
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
 
 	buf2=byteDestuffing(buf, &size_buf);
+
+	printf("SIZEBUF after destuffing: %d\n", size_buf);
+
 	memcpy(buf, buf2, size_buf);
 
 	sendRRorREJ(buf,size_buf);
 
 
 	appPacket= applicationPacket(buf,size_buf);
-	*packetSize=size_buf;
+	*packetSize=size_buf - SIZE_CONNECTION_LAYER;
+
+	/*
+	*Não estávamos a atualizar devidamente o tamanho do appPacket
+	*/
+
+	printf("SIZE AFTER APPLICATION: %d", *packetSize);
 
 	return appPacket;
 }
@@ -287,7 +298,7 @@ void createFile(){
 					filename[i]=appPacket[9+i];
 
 				}
-
+					printf("%s", filename);
 					file=fopen(filename,"wb");
 			}
 			else if(appPacket[0]==frameI_END){
@@ -295,9 +306,12 @@ void createFile(){
 					break;
 			}
 			else{
-				fwrite(appPacket,sizeof(unsigned char),packetSize,file);
-				//for(i=0;i < packetSize;i++)
-				//fwrite(&appPacket[i],1,sizeof(unsigned char),file);
+				//fwrite(appPacket,sizeof(unsigned char),packetSize,file);
+				printf("\n\nPACKETSIZE: %d\n\n", packetSize);
+				//for(i=10;i < packetSize;i++)
+				//	fwrite(&appPacket[i],1,sizeof(unsigned char),file);
+				fwrite(appPacket,sizeof(unsigned char),4,file);
+				fwrite(appPacket+8,sizeof(unsigned char),packetSize-8, file);
 			}
 	}
 }
