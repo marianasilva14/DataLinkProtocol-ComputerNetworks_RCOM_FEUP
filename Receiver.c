@@ -350,11 +350,12 @@ void createFile(){
 }
 
 /**
-* Sends
+* Read DISC returned by emissor, sends DISC and read UA returned by emissor
 * @return -1 if can't write, return 0 if can read and write
 */
 int llclose(){
 	int res;
+	
 	unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
 
 	stateMachineReceiver(C_DISC);
