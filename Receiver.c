@@ -2,6 +2,7 @@
 
 struct termios oldtio,newtio;
 FILE *file;
+//int resend = 1;
 
 /**
 * State machine where SET is read that is sent by the transmitter, in the connection establishment phase
@@ -220,32 +221,37 @@ unsigned char *completeSupervisionPacket(unsigned char controlByte){
 * @param array received from the transmitter
 * @param size of the array received from the transmitter
 */
-void sendRRorREJ(unsigned char *buf,int bufSize){
+int sendRRorREJ(unsigned char *buf,int bufSize){
 
 	unsigned char *supervisionPacket=(unsigned char*)malloc(sizeof(unsigned char)*5);
 
 	if(verifyBCC2(buf,bufSize)){
-
+		//resend = 0;
 		if(buf[2] == C_INFO(0)){
 			memcpy(supervisionPacket, completeSupervisionPacket(RR(1)), 5);
 			write(fd,supervisionPacket,5);
-
+			printf("ENVEI UM RR(1)\n");
 		}
 		else if(buf[2] == C_INFO(1)){
 			memcpy(supervisionPacket, completeSupervisionPacket(RR(0)), 5);
 			write(fd,supervisionPacket,5);
+			printf("ENVEI UM RR(0)\n");
 		}
+		return 0;
 	}
 	else{
 		if(buf[2] == C_INFO(0)){
 			memcpy(supervisionPacket, completeSupervisionPacket(REJ(0)), 5);
 			write(fd,supervisionPacket,5);
+			printf("ENVEI UM Rej(0)\n");
 
 		}
 		else if(buf[2] == C_INFO(1)){
 			memcpy(supervisionPacket, completeSupervisionPacket(REJ(1)), 5);
 			write(fd,supervisionPacket,5);
+			printf("ENVEI UM Rej(1)\n");
 		}
+		return 1;
 	}
 }
 
@@ -278,16 +284,22 @@ unsigned char* llread(int *packetSize){
 	unsigned char *appPacket;
 	unsigned char *buf;
 	int size_buf=0;
+	int reread = 1;
 
-	buf=readFrameI(&size_buf);
+	while(reread){
+		buf=readFrameI(&size_buf);
 
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
 
 	buf2=byteDestuffing(buf, &size_buf);
 
 	memcpy(buf, buf2, size_buf);
+	free(buf2);
 
-	sendRRorREJ(buf,size_buf);
+	if(sendRRorREJ(buf,size_buf)==0)
+		reread = 0;
+	}
+
 
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf - SIZE_CONNECTION_LAYER;
@@ -355,7 +367,7 @@ void createFile(){
 */
 int llclose(){
 	int res;
-	
+
 	unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
 
 	stateMachineReceiver(C_DISC);
