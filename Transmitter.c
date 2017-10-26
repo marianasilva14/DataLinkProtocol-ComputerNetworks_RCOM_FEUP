@@ -12,7 +12,7 @@ unsigned char* initial_buf;
 int fsize;
 FILE *file;
 int resend=1;
-//int flag_alarm=0;
+int N;
 
 /**
 * Handler the alarm
@@ -20,7 +20,6 @@ int resend=1;
 void handler_alarm()
 {
 	printf("alarm # %d\n", counter_alarm);
-	counter_alarm++;
 	//flag_alarm=1;
 	if(counter_alarm >= 4)
 	exit(-1);
@@ -32,6 +31,7 @@ void handler_alarm()
 		}
 		printf("wrote %d\nexiting handler.\n", res);
 		alarm(3);
+		counter_alarm++;
 	}
 }
 
@@ -91,7 +91,7 @@ int stateMachineTransmissor(unsigned char controlByte){
 * @param length size of read buffer
 * @return supervision packet
 */
-unsigned char *readFrameIConfirmations(unsigned int *length){
+unsigned char *readFrameIConfirmations(){
 
 	unsigned char buf;
 	unsigned char c_info;
@@ -102,8 +102,8 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	int res;
 
 	while (state!=5) {
-		res= read(fd, &buf, 1);
-		//printf("state: %d buf: %d\n", state, buf);
+		res = read(fd, &buf, 1);
+		printf("buf, state, res: %x %d %d\n",buf,state, res );
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -160,7 +160,6 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	}
 	finalBuf=(unsigned char*)malloc(size);
 	memcpy(finalBuf,final,size);
-	*length=size;
 	return finalBuf;
 
 }
@@ -197,16 +196,11 @@ int llopen()
 * @return packet with the application packet
 */
 unsigned char* addApplication_Packet(unsigned char *packet,int packetSize){
-	unsigned char c_info;
-	unsigned char *fileData;
-	if(switch_C1==0)
-		c_info=C_INFO(0);
-	else
-		c_info=C_INFO(1);
 
+	unsigned char *fileData;
 	fileData=(unsigned char*)malloc(packetSize+4);
 	fileData[0]=0x01;
-	fileData[1]=c_info;
+	fileData[1]=N;
 	fileData[2]=packetSize/256;
 	fileData[3]=packetSize%256;
 
@@ -384,7 +378,8 @@ int llwrite(unsigned char* file_buffer,int length){
 		memcpy(frameI+frameI_length,file_buffer,length);
 		frameI_length+=length;
 
-		//add BCC2 to frameI
+		//add BCC2 to frameI1
+
 		memcpy(frameI+frameI_length,calculateBCC2(file_buffer,length),1);
 		frameI_length+=2;
 
@@ -393,19 +388,24 @@ int llwrite(unsigned char* file_buffer,int length){
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
 
 
-		do{
+	do{
 			write(fd,frameI,frameI_length);
 			memcpy(message,frameI,frameI_length);
 			sizeof_message=frameI_length;
 			printf("resend_antes: %d\n", resend);
 			alarm(3);
-			confirmations= readFrameIConfirmations(&frameI_length);
+
+			for(i=0;i<frameI_length;i++)
+				printf("frameI: %x\n", frameI[i]);
+
+			confirmations=readFrameIConfirmations();
 			printf("resend_depois: %d\n", resend);
 		}while(resend);
-		//alarm(0);
 
+		//alarm(0);
 		if(readAnswers(confirmations))
 			canReadNextPacket=1;
+
 	}
 	return 0;
 }
@@ -449,7 +449,7 @@ int llclose()
 void sendFrames(){
 	unsigned char * aux_buf=(unsigned char*)malloc(sizeof(unsigned char)*PACKET_SIZE);
 	int size=0;
-	int count=0;
+	N=0;
 	int frameI_size=9+strlen(filename);
 	llwrite(creatFrameI_START_OR_END(frameI_START),frameI_size);
 	while (size <= fsize) {
@@ -458,7 +458,8 @@ void sendFrames(){
 		unsigned char *data = addApplication_Packet(aux_buf, PACKET_SIZE);
 		llwrite(data,PACKET_SIZE+4);
 
-		count++;
+		N++;
+		N%=256;
 		size+=PACKET_SIZE;
 	}
 	llwrite(creatFrameI_START_OR_END(frameI_END),frameI_size);
@@ -491,7 +492,7 @@ int main(int argc, char** argv)
 	because we don't want to get killed if linenoise sends CTRL-C.
 	*/
 
-	fd = open(argv[1], O_RDWR | O_NOCTTY | O_NONBLOCK);
+	fd = open(argv[1], O_RDWR | O_NOCTTY);
 	if (fd <0) {perror(argv[1]); exit(-1); }
 
 
