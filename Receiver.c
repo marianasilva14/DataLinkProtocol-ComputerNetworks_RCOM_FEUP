@@ -2,6 +2,7 @@
 
 struct termios oldtio,newtio;
 FILE *file;
+int N=0;
 //int resend = 1;
 
 /**
@@ -288,18 +289,21 @@ unsigned char* llread(int *packetSize){
 
 	while(reread){
 		buf=readFrameI(&size_buf);
+		int i;
+		for(i = 0; i < size_buf; i++){
+			printf("frameI: %x\n", buf[i]);
+		}
 
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
 
 	buf2=byteDestuffing(buf, &size_buf);
 
-	memcpy(buf, buf2, size_buf);
+		memcpy(buf, buf2, size_buf);
+
 	free(buf2);
-
 	if(sendRRorREJ(buf,size_buf)==0)
-		reread = 0;
+			reread = 0;
 	}
-
 
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf - SIZE_CONNECTION_LAYER;
