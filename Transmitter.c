@@ -11,6 +11,8 @@ char *filename;
 unsigned char* initial_buf;
 int fsize;
 FILE *file;
+int resend=1;
+//int flag_alarm=0;
 
 /**
 * Handler the alarm
@@ -19,14 +21,17 @@ void handler_alarm()
 {
 	printf("alarm # %d\n", counter_alarm);
 	counter_alarm++;
-
-	if(counter_alarm == 4)
+	//flag_alarm=1;
+	if(counter_alarm >= 4)
 	exit(-1);
 	else{
-		int res = write(fd,message,sizeof_message);
+		int res;
+		res = write(fd,message,sizeof_message);
 		if(res<0){
 			printf("Cannot write handler_alarm\n");
 		}
+		printf("wrote %d\nexiting handler.\n", res);
+		alarm(3);
 	}
 }
 
@@ -70,8 +75,9 @@ int stateMachineTransmissor(unsigned char controlByte){
 			state=0;
 			break;
 			case 4:
-			if(buf==supervisionPacket[4])
+			if(buf==supervisionPacket[4]){
 			state=5;
+		alarm(0);}
 			else
 			state=0;
 			break;
@@ -94,9 +100,10 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 	unsigned char *final=(unsigned char*)malloc(10000);
 	int state = 0;
 	int res;
+
 	while (state!=5) {
 		res= read(fd, &buf, 1);
-
+		//printf("state: %d buf: %d\n", state, buf);
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -109,28 +116,40 @@ unsigned char *readFrameIConfirmations(unsigned int *length){
 				else if(buf == FLAG)
 				state=1;
 				else
-				state=0;
+				state=0;;
 				break;
 				case 2:
-				if((buf== RR(0)) || (buf == RR(1))  ||  (buf== REJ(0))|| (buf == REJ(1))){
+				if(buf== RR(0) || buf == RR(1)){
+					printf("received a rr\n");
 					C1=buf;
 					c_info=buf;
 					state=3;
+					resend=0;
+				}
+				else if(buf== REJ(0) || buf == REJ(1)){
+					printf("received a rej\n");
+					C1=buf;
+					c_info=buf;
+					resend=1;
+					state=3;
 				}
 				else if (buf == FLAG)
-				state=1;
+					state=1;
 				else
-				state=0;
+					state=0;
 				break;
 				case 3:
-				if(buf==(A^c_info))
-				state=4;
-				else
-				state=0;
+					if(buf==(A^c_info))
+						state=4;
+					else
+						state=0;
 				break;
 				case 4:
-				if(buf==FLAG)
-				state=5;
+				if(buf==FLAG){
+					state=5;
+					alarm(0);
+					printf("canceled alarm resend=%d.\n", resend);
+				}
 				break;
 			}
 			memcpy(final+size,&buf,1);
@@ -166,7 +185,7 @@ int llopen()
 
 	alarm(3);
 	stateMachineTransmissor(C_UA);
-	alarm(0);
+	//alarm(0);
 
 	return 0;
 }
@@ -350,7 +369,8 @@ unsigned char* creatFrameI_START_OR_END(unsigned char controlByte){
 */
 int llwrite(unsigned char* file_buffer,int length){
 	unsigned int frameI_length=0;
-
+	unsigned char* confirmations=(unsigned char*)malloc(5);
+	resend=1;
 	int canReadNextPacket=0;
 	while(!canReadNextPacket){
 		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
@@ -372,17 +392,20 @@ int llwrite(unsigned char* file_buffer,int length){
 		unsigned char *stuffing_array= byteStuffing(frameI+4,&frameI_length);
 		memcpy(frameI+4,stuffing_array+4,frameI_length);
 
-		alarm(3);
-		write(fd,frameI,frameI_length);
-		memcpy(message,frameI,frameI_length);
-		sizeof_message=frameI_length;
 
-		unsigned char* confirmations= readFrameIConfirmations(&frameI_length);
-
-		alarm(0);
+		do{
+			write(fd,frameI,frameI_length);
+			memcpy(message,frameI,frameI_length);
+			sizeof_message=frameI_length;
+			printf("resend_antes: %d\n", resend);
+			alarm(3);
+			confirmations= readFrameIConfirmations(&frameI_length);
+			printf("resend_depois: %d\n", resend);
+		}while(resend);
+		//alarm(0);
 
 		if(readAnswers(confirmations))
-		canReadNextPacket=1;
+			canReadNextPacket=1;
 	}
 	return 0;
 }
@@ -406,7 +429,7 @@ int llclose()
 
 	alarm(3);
 	stateMachineTransmissor(C_DISC);
-	alarm(0);
+	//alarm(0);
 
 	unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};
 
