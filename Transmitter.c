@@ -8,7 +8,7 @@ int switch_C1=1;
 unsigned char * message;
 int sizeof_message;
 char *filename;
-unsigned char* buf;
+unsigned char* initial_buf;
 int fsize;
 FILE *file;
 
@@ -388,7 +388,7 @@ int llwrite(unsigned char* file_buffer,int length){
 }
 
 /**
-* Sends the DISC and the UA and ends the program
+* Sends the DISC,receive the DISC and send the UA. In the end, close the program
 * @return zero when finished
 */
 int llclose()
@@ -430,7 +430,7 @@ void sendFrames(){
 	int frameI_size=9+strlen(filename);
 	llwrite(creatFrameI_START_OR_END(frameI_START),frameI_size);
 	while (size <= fsize) {
-		memcpy(aux_buf,&buf[size],PACKET_SIZE);
+		memcpy(aux_buf,&initial_buf[size],PACKET_SIZE);
 
 		unsigned char *data = addApplication_Packet(aux_buf, PACKET_SIZE);
 		llwrite(data,PACKET_SIZE+4);
@@ -460,8 +460,8 @@ int main(int argc, char** argv)
 
 	fsize = getFileSize(file);
 	filename=argv[2];
-	unsigned char* buf = (unsigned char*)malloc(fsize);
-	fread(buf,sizeof(unsigned char),fsize,file);
+	initial_buf = (unsigned char*)malloc(fsize);
+	fread(initial_buf,sizeof(unsigned char),fsize,file);
 
 	/*
 	Open serial port device for reading and writing and not as controlling tty
