@@ -33,6 +33,7 @@
 #define frameI_END 0x03
 
 int fd;
+int resend=1;
 
 int getFileSize(FILE* file) {
 	// saving current position
