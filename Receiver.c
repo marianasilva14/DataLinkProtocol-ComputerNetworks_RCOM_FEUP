@@ -349,6 +349,28 @@ void createFile(){
 	}
 }
 
+/**
+* Sends
+* @return -1 if can't write, return 0 if can read and write
+*/
+int llclose(){
+	int res;
+	unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
+
+	stateMachineReceiver(C_DISC);
+
+	res=write(fd,DISC,5);
+
+	if(res<0){
+		printf("Cannot write\n");
+		return -1;
+	}
+
+	stateMachineReceiver(C_UA);
+
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	if ( (argc < 2) ||
@@ -397,6 +419,7 @@ int main(int argc, char** argv)
 
 	llopen();
 	createFile();
+	llclose();
 
 	sleep(3);
 
