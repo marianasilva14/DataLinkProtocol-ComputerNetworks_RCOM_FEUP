@@ -30,7 +30,6 @@ void handler_alarm()
 		if(res<0){
 			printf("Cannot write handler_alarm\n");
 		}
-		printf("wrote %d\nexiting handler.\n", res);
 		alarm(3);
 		counter_alarm++;
 }
@@ -104,7 +103,6 @@ unsigned char *readFrameIConfirmations(){
 
 	while (state!=5) {
 		res = read(fd, &buf, 1);
-		printf("buf, state, res: %x %d %d\n",buf,state, res );
 		if(res > 0){
 			switch(state){
 				case 0:
@@ -181,7 +179,7 @@ int llopen()
 	memcpy(message,SET,5);
 	sizeof_message=5;
 	if(res < 0){
-		printf("Cannot write llopen\n");
+		printf("Cannot write llopen\n\n");
 		return -1;
 	}
 
@@ -189,7 +187,7 @@ int llopen()
 	stateMachineTransmissor(C_UA);
 	//alarm(0);
 
-	printf("Exit llopen()\n");
+	printf("Exited llopen()\n\n");
 	return 0;
 }
 
@@ -397,11 +395,10 @@ int llwrite(unsigned char* file_buffer,int length){
 			write(fd,frameI,frameI_length);
 			memcpy(message,frameI,frameI_length);
 			sizeof_message=frameI_length;
-			printf("resend_antes: %d\n", resend);
 			alarm(3);
 
 			confirmations=readFrameIConfirmations();
-			printf("resend_depois: %d\n", resend);
+
 		}while(resend);
 
 		//alarm(0);
@@ -410,7 +407,7 @@ int llwrite(unsigned char* file_buffer,int length){
 
 	}
 
-	printf("Exit llwrite()\n");	
+	printf("Exited llwrite()\n\n");
 	return 0;
 }
 
