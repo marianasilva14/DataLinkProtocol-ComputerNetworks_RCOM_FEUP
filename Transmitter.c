@@ -1,6 +1,6 @@
 #include "Utilities.h"
 
-int counter_alarm = 1;
+int counter_alarm = 0;
 struct termios oldtio,newtio;
 int filesize;
 unsigned char C1=0x40;
@@ -19,9 +19,10 @@ int N;
 */
 void handler_alarm()
 {
-	printf("alarm # %d\n", counter_alarm);
-	//flag_alarm=1;
-	if(counter_alarm >= 4)
+	if(counter_alarm != 0)
+		printf("alarm # %d\n", counter_alarm);
+
+	if(counter_alarm >= 3)
 	exit(-1);
 	else{
 		int res;
@@ -32,7 +33,7 @@ void handler_alarm()
 		printf("wrote %d\nexiting handler.\n", res);
 		alarm(3);
 		counter_alarm++;
-	}
+}
 }
 
 /**
@@ -170,6 +171,8 @@ unsigned char *readFrameIConfirmations(){
 */
 int llopen()
 {
+
+	printf("Entered llopen()\n");
 	(void)signal(SIGALRM, handler_alarm);
 	int res;
 	unsigned char SET[5] = {FLAG, A, C, A^C, FLAG};
@@ -186,6 +189,7 @@ int llopen()
 	stateMachineTransmissor(C_UA);
 	//alarm(0);
 
+	printf("Exit llopen()\n");
 	return 0;
 }
 
@@ -314,11 +318,11 @@ int readAnswers(unsigned char *answers){
 	}
 
 	else if(answers[2]==REJ(0)){
-		switch_C1=1;
+		switch_C1=0;
 		answer=0;
 	}
 	else{
-		switch_C1=0;
+		switch_C1=1;
 		answer=0;
 	}
 	return answer;
@@ -362,11 +366,12 @@ unsigned char* creatFrameI_START_OR_END(unsigned char controlByte){
 * @return zero when finished
 */
 int llwrite(unsigned char* file_buffer,int length){
+	printf("Exit llwrite()\n");
 	unsigned int frameI_length=0;
 	unsigned char* confirmations=(unsigned char*)malloc(5);
 	resend=1;
-	int canReadNextPacket=0;
-	while(!canReadNextPacket){
+	int canWriteNextPacket=0;
+	while(!canWriteNextPacket){
 		unsigned char *frameI = (unsigned char*)malloc(sizeof(unsigned char)*4);
 		int i;
 		//add header F,A,C1,BCC1
@@ -395,18 +400,17 @@ int llwrite(unsigned char* file_buffer,int length){
 			printf("resend_antes: %d\n", resend);
 			alarm(3);
 
-			for(i=0;i<frameI_length;i++)
-				printf("frameI: %x\n", frameI[i]);
-
 			confirmations=readFrameIConfirmations();
 			printf("resend_depois: %d\n", resend);
 		}while(resend);
 
 		//alarm(0);
 		if(readAnswers(confirmations))
-			canReadNextPacket=1;
+			canWriteNextPacket=1;
 
 	}
+
+	printf("Exit llwrite()\n");	
 	return 0;
 }
 
@@ -416,6 +420,7 @@ int llwrite(unsigned char* file_buffer,int length){
 */
 int llclose()
 {
+	printf("Entered llclose()\n");
 	int res;
 	unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
 
@@ -441,6 +446,7 @@ int llclose()
 		return -1;
 	}
 
+	printf("Exit llclose()\n");
 	return 0;
 }
 /**
