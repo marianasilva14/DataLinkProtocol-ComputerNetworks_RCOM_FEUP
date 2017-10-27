@@ -216,6 +216,18 @@ unsigned char *completeSupervisionPacket(unsigned char controlByte){
 }
 
 /**
+*
+*/
+int verifyN(unsigned char* buf, int size){
+	if(buf[1]==N)
+	{
+		N++;
+		N%=256;
+		return 1;
+	}
+	return 0;
+}
+/**
 * If BCC2 is correct, the receiver sends RR. If you receive from the transmitter a 0x00 sends an RR (1), if it receives a 0x40 it sends
 * an RR (0). If it is wrong, the receiver sends a REJ. It is REJ (0) if you receive a 0x00 from the transmitter, REJ (1) if you receive
 * a 0x40.
@@ -282,6 +294,7 @@ unsigned char* applicationPacket(unsigned char* buffer, int buffer_size){
 * @return array read
 */
 unsigned char* llread(int *packetSize){
+	printf("Entered llread()\n");
 	unsigned char *appPacket;
 	unsigned char *buf;
 	int size_buf=0;
@@ -289,10 +302,6 @@ unsigned char* llread(int *packetSize){
 
 	while(reread){
 		buf=readFrameI(&size_buf);
-		int i;
-		for(i = 0; i < size_buf; i++){
-			printf("frameI: %x\n", buf[i]);
-		}
 
 	unsigned char *buf2=(unsigned char*)malloc(size_buf);
 
@@ -308,6 +317,8 @@ unsigned char* llread(int *packetSize){
 	appPacket= applicationPacket(buf,size_buf);
 	*packetSize=size_buf - SIZE_CONNECTION_LAYER;
 
+	printf("Exited llread()\n \n");
+
 	return appPacket;
 }
 
@@ -316,6 +327,7 @@ unsigned char* llread(int *packetSize){
 * @return -1 if can't write UA
 */
 int llopen(){
+	printf("Entered llopen()\n");
 	unsigned char UA[5]={FLAG,A,C_UA,A^C_UA,FLAG};
 	int res;
 
@@ -328,6 +340,7 @@ int llopen(){
 		return -1;
 	}
 
+	printf("Exited llopen()\n \n");
 	return 0;
 }
 
@@ -360,6 +373,7 @@ void createFile(){
 					break;
 			}
 			else{
+				printf("\n\nAPP PACKET SIZE: %d\n\n", packetSize-4);
 				fwrite(appPacket+4,sizeof(unsigned char),packetSize-4,file);
 			}
 	}
@@ -370,6 +384,8 @@ void createFile(){
 * @return -1 if can't write, return 0 if can read and write
 */
 int llclose(){
+	printf("Entered llclose()\n");
+
 	int res;
 
 	unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
@@ -385,6 +401,7 @@ int llclose(){
 
 	stateMachineReceiver(C_UA);
 
+	printf("Exited llclose()\n \n");
 	return 0;
 }
 
@@ -393,7 +410,7 @@ int main(int argc, char** argv)
 	if ( (argc < 2) ||
 	((strcmp("/dev/ttyS0", argv[1])!=0) &&
 	(strcmp("/dev/ttYS1", argv[1])!=0) )) {
-		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/tnt1\n");
+		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
 		exit(1);
 	}
 
