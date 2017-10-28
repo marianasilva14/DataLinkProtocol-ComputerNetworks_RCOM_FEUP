@@ -2,7 +2,6 @@
 
 struct termios oldtio,newtio;
 FILE *file;
-int N=0;
 //int resend = 1;
 
 /**
@@ -215,18 +214,6 @@ unsigned char *completeSupervisionPacket(unsigned char controlByte){
 	return supervisionPacket;
 }
 
-/**
-*
-*/
-int verifyN(unsigned char* buf, int size){
-	if(buf[1]==N)
-	{
-		N++;
-		N%=256;
-		return 1;
-	}
-	return 0;
-}
 /**
 * If BCC2 is correct, the receiver sends RR. If you receive from the transmitter a 0x00 sends an RR (1), if it receives a 0x40 it sends
 * an RR (0). If it is wrong, the receiver sends a REJ. It is REJ (0) if you receive a 0x00 from the transmitter, REJ (1) if you receive
