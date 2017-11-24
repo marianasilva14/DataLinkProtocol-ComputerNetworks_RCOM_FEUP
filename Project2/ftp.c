@@ -3,12 +3,12 @@
 #include "ftp.h"
 
 int parseURL(char *path, url_info *info){
+  
   char init[STRING_SIZE];
   char * buffer = (char*)malloc(STRING_SIZE);
   int indexPath = 6;
   int indexBuffer = 0;
 
-  printf("AAAAAAAAAAAAAAAAAAAAAA");
 
   sprintf(init, "ftp://");
   int i;
@@ -18,7 +18,6 @@ int parseURL(char *path, url_info *info){
       return -1;
     }
   }
-  printf("aquiiii");
   if(path[indexPath] == '['){
     indexPath++;
     while(path[indexPath] != ':'){
@@ -26,7 +25,12 @@ int parseURL(char *path, url_info *info){
       indexBuffer++;
       indexPath++;
     }
-    strncpy(info->user, buffer, indexBuffer);
+    
+    //strncpy(info->user, buffer, indexBuffer-1);
+    printf("%s\n", buffer);
+    printf("%d\n", indexBuffer);
+    info->user=malloc(indexBuffer);
+    memcpy(info->user, buffer, indexBuffer);
     indexPath++;
     free(buffer);
     buffer = (char*)malloc(STRING_SIZE);
@@ -36,6 +40,8 @@ int parseURL(char *path, url_info *info){
       indexBuffer++;
       indexPath++;
     }
+    printf("HEREEEE!\n");
+    info->password=malloc(indexBuffer);
     strncpy(info->password, buffer, indexBuffer);
     indexPath++;
     if(path[indexPath] != ']'){
@@ -47,12 +53,12 @@ int parseURL(char *path, url_info *info){
     indexBuffer = 0;
     indexPath++;
   }
-
   while(path[indexPath] != '/'){
     buffer[indexBuffer] = path[indexPath];
     indexBuffer++;
     indexPath++;
   }
+  info->host=malloc(indexBuffer);
   strncpy(info->host, buffer, indexBuffer);
 
   free(buffer);
@@ -64,12 +70,20 @@ int parseURL(char *path, url_info *info){
     indexBuffer++;
     indexPath++;
   }
+  info->path=malloc(indexBuffer);
   strncpy(info->path, buffer, indexBuffer);
 
   return 0;
 }
 
+
+int connect(const char *ip, int port){
+  
+}
+
 int main(int argc, char** argv){
+
+  //printf("%d\n", argc);
 
 	// int	sockfd;
 	// struct	sockaddr_in server_addr;
@@ -101,8 +115,9 @@ int main(int argc, char** argv){
   //getip.c
 
   if (argc != 2) {
-      fprintf(stderr,"usage: getip address\n");
-      exit(1);
+      //fprintf(stderr,"usage: getip address\n");
+      printf("Incorrect number of arguments\n");
+     //exit(1);
   }
 
 
@@ -110,17 +125,16 @@ int main(int argc, char** argv){
   //     herror("gethostbyname");
   //     exit(1);
   // }
-  printf("AQUIIII");
-  printf("%s", argv[0]);
+  printf("%s\n", argv[0]);
 
-  url_info *info;
-  if(parseURL(argv[1], info)==-1)
+  url_info info;
+  if(parseURL(argv[1], &info)==-1)
     exit(0);
 
-    printf("%s\n", info->user);
-    printf("%s\n", info->password);
-    printf("%s\n", info->host);
-    printf("%s\n", info->path);
+    printf("%s\n", info.user);
+    printf("%s\n", info.password);
+    printf("%s\n", info.host);
+    printf("%s\n", info.path);
 
 	//close(sockfd);
 	exit(0);

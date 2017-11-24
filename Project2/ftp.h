@@ -23,3 +23,5 @@ typedef struct{
 }url_info;
 
 int parseURL(char *path, url_info *info);
+
+int connect(const char *ip, int port);
