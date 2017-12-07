@@ -8,7 +8,7 @@ int parseURL(char *path, url_info *info){
   char * buffer = (char*)malloc(STRING_SIZE);
   int indexPath = 6;
   int indexBuffer = 0;
-
+  int existsUser = 0;
 
   sprintf(init, "ftp://");
   int i;
@@ -18,14 +18,22 @@ int parseURL(char *path, url_info *info){
       return -1;
     }
   }
-  if(path[indexPath] == '['){
+
+  for(i = 6; i < STRING_SIZE; i++){
+    printf("%d\n", i);
+    if(path[i] == '@')
+      existsUser = 1;
+  }
+
+printf("%d\n", existsUser);
+printf("aquiiiiiiiiiiii\n");
+  if(existsUser){
     indexPath++;
     while(path[indexPath] != ':'){
       buffer[indexBuffer] = path[indexPath];
       indexBuffer++;
       indexPath++;
     }
-
     //strncpy(info->user, buffer, indexBuffer-1);
     printf("%s\n", buffer);
     printf("%d\n", indexBuffer);
@@ -44,14 +52,31 @@ int parseURL(char *path, url_info *info){
     info->password=malloc(indexBuffer);
     strncpy(info->password, buffer, indexBuffer);
     indexPath++;
-    if(path[indexPath] != ']'){
-      printf("Wrong path syntax\n");
-      return -1;
-    }
     free(buffer);
     buffer = (char*)malloc(STRING_SIZE);
     indexBuffer = 0;
     indexPath++;
+  }
+  else{
+  //  indexPath++;
+    char array[9];
+    strcpy(array, "anonymous");
+    i=0;
+    while(i != 9){
+      buffer[indexBuffer] = array[i];
+      i++;
+      indexBuffer++;
+    }
+  printf("aqui2\n");
+    info->user=malloc(indexBuffer);
+    memcpy(info->user, buffer, indexBuffer);
+    //indexPath++;
+    free(buffer);
+    buffer = (char*)malloc(STRING_SIZE);
+    indexBuffer = 0;
+
+    info->password="";
+
   }
   while(path[indexPath] != '/'){
     buffer[indexBuffer] = path[indexPath];
@@ -80,7 +105,6 @@ int parseURL(char *path, url_info *info){
 int getIpByHost(url_info* url)
 {
   struct hostent *h;
-
 
   printf("Host name url  : %s\n", url->host);
 
@@ -132,10 +156,15 @@ printf("Depois do connect\n");
 }
 
 int readFtpReply(int control, char* str, size_t size){
-
+  printf("readFtpReply\n");
+  printf("control %d\n", control);
+  printf("str %s\n", str);
+  printf("size %d\n", size);
   FILE* fp = fdopen(control, "r");
 
   fgets(str, size, fp);
+  printf("depois de file\n");
+
   printf("%s", str);
 
   return 0;
@@ -143,11 +172,10 @@ int readFtpReply(int control, char* str, size_t size){
 }
 
 int loginFTP(const char* user, const char* password, sockets* ftp){
-  printf("aqui0");
 
   char userTest[STRING_SIZE];
   char passTest[STRING_SIZE];
-  printf("aqui0");
+
 
   sprintf(userTest, "USER %s\r\n", user);
   sprintf(passTest, "PASS %s\r\n", password);
@@ -156,13 +184,12 @@ int loginFTP(const char* user, const char* password, sockets* ftp){
     printf("Login failed!\n");
     return -1;
   }
-  printf("aqui");
-
+printf("%d\n", ftp->control);
   if(readFtpReply(ftp->control, userTest, STRING_SIZE)){
     printf("Login failed!\n");
     return -1;
   }
-  printf("aqui2");
+  printf("aqui2\n");
 
   if(write(ftp->control, passTest, strlen(passTest))==-1){
     printf("Login failed!\n");
@@ -331,7 +358,12 @@ int main(int argc, char** argv){
   url_info info;
   if(parseURL(argv[1], &info)==-1)
     exit(0);
-printf("Fez parseURL\n");
+  printf("Fez parseURL\n");
+  printf("%s\n", info.user);
+  printf("%s\n", info.password);
+  printf("%s\n", info.host);
+  printf("%s\n", info.path);
+
   getIpByHost(&info);
   printf("Fez getIpByHost\n");
 
@@ -341,7 +373,7 @@ printf("Fez parseURL\n");
 
   connectFTP(info.ip, port);
   printf("Fez connectFTP\n");
-  printf("%x", info.user);
+
   loginFTP(info.user, info.password, &socket);
   printf("Fez login\n");
 

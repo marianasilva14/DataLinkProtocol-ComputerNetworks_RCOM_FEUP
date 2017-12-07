@@ -11,7 +11,6 @@
 #include <string.h>
 
 #define SERVER_PORT 6000
-#define SERVER_ADDR "192.168.28.96"
 #define STRING_SIZE 200
 
 typedef struct{
@@ -26,7 +25,7 @@ typedef struct{
 typedef struct{
 	int data;
 	int control;
-	
+
 }sockets;
 
 int parseURL(char *path, url_info *info);
