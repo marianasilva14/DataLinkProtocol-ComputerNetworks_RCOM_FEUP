@@ -30,7 +30,9 @@ typedef struct{
 
 int parseURL(char *path, url_info *info);
 
-int connectFTP(const char *ip, int port);
+int connectFTP(const char *ip, int port, sockets* socket);
+
+int connectSocket(const char *ip, int port);
 
 int loginFTP(const char* user, const char* password, sockets* ftp);
 
