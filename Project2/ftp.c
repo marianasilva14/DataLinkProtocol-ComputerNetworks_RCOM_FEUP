@@ -3,7 +3,7 @@
 #include "ftp.h"
 
 int parseURL(char *path, url_info *info){
-  
+
   char init[STRING_SIZE];
   char * buffer = (char*)malloc(STRING_SIZE);
   int indexPath = 6;
@@ -25,7 +25,7 @@ int parseURL(char *path, url_info *info){
       indexBuffer++;
       indexPath++;
     }
-    
+
     //strncpy(info->user, buffer, indexBuffer-1);
     printf("%s\n", buffer);
     printf("%d\n", indexBuffer);
@@ -77,19 +77,19 @@ int parseURL(char *path, url_info *info){
 }
 
 
-int getIpByHost(url_info* url) 
+int getIpByHost(url_info* url)
 {
   struct hostent *h;
 
 
   printf("Host name url  : %s\n", url->host);
 
-  if ((h=gethostbyname(url->host)) == NULL) {  
+  if ((h=gethostbyname(url->host)) == NULL) {
     herror("gethostbyname");
     exit(1);
   }
 
-    
+
   char* ip = inet_ntoa(*((struct in_addr *)h->h_addr));
   url->ip=malloc(sizeof(ip));
   strcpy(url->ip, ip);
@@ -103,26 +103,30 @@ int connectFTP(const char* ip, int port){
 
   int sockfd;
   struct  sockaddr_in server_addr;
-
+  printf("Depois da declração de struct\n");
     /*server address handling*/
   bzero((char*)&server_addr,sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR); /*32 bit Internet address network byte ordered*/
-    server_addr.sin_port = htons(SERVER_PORT);    /*server TCP port must be network byte ordered */
+    server_addr.sin_addr.s_addr = inet_addr(ip); /*32 bit Internet address network byte ordered*/
+    server_addr.sin_port = htons(port);    /*server TCP port must be network byte ordered */
+  printf("Antes do if\n");
 
     /*open an TCP socket*/
   if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
     perror("socket()");
     exit(0);
   }
+  printf("Antes do connect\n");
 
     /*connect to the server*/
-  if(connect(sockfd, 
-   (struct sockaddr *)&server_addr, 
-   sizeof(server_addr)) < 0){
+  if(connect(sockfd,(struct sockaddr *)&server_addr,sizeof(server_addr)) < 0){
+    printf("Dentro do if\n");
     perror("connect()");
-  exit(0);
-}
+    exit(0);
+  }
+
+printf("Depois do connect\n");
+
 
   return sockfd;
 }
@@ -133,14 +137,17 @@ int readFtpReply(int control, char* str, size_t size){
 
   fgets(str, size, fp);
   printf("%s", str);
-  
+
   return 0;
 
 }
 
 int loginFTP(const char* user, const char* password, sockets* ftp){
+  printf("aqui0");
+
   char userTest[STRING_SIZE];
   char passTest[STRING_SIZE];
+  printf("aqui0");
 
   sprintf(userTest, "USER %s\r\n", user);
   sprintf(passTest, "PASS %s\r\n", password);
@@ -149,16 +156,19 @@ int loginFTP(const char* user, const char* password, sockets* ftp){
     printf("Login failed!\n");
     return -1;
   }
+  printf("aqui");
 
   if(readFtpReply(ftp->control, userTest, STRING_SIZE)){
     printf("Login failed!\n");
     return -1;
   }
+  printf("aqui2");
 
   if(write(ftp->control, passTest, strlen(passTest))==-1){
     printf("Login failed!\n");
     return -1;
   }
+  printf("aqui3");
 
   if(readFtpReply(ftp->control, passTest, STRING_SIZE)){
     printf("Login failed!\n");
@@ -206,7 +216,7 @@ int passiveMode(sockets* ftp){
     printf("Passive mode failed.\n");
     return 1;
   }
-  
+
   int ip1,ip2,ip3,ip4;
   int port1, port2;
 
@@ -254,7 +264,7 @@ int downloadFileFTP(const char* filename, sockets* ftp){
   FILE* fp;
   int bytes;
 
-  if (!(fp = fopen(filename, "w"))) 
+  if (!(fp = fopen(filename, "w")))
   {
     printf("Download file.\n");
     return 1;
@@ -286,7 +296,7 @@ int disconnectFromFTP(sockets* ftp){
 
   char disc[STRING_SIZE];
   sprintf(disc, "QUIT\n");
-  
+
   if(write(ftp->control, disc, strlen(disc)))
   {
     printf("Sending failed.\n");
@@ -321,21 +331,19 @@ int main(int argc, char** argv){
   url_info info;
   if(parseURL(argv[1], &info)==-1)
     exit(0);
-
-  printf("%s\n", info.user);
-  printf("%s\n", info.password);
-  printf("%s\n", info.host);
-  printf("%s\n", info.path);
-
+printf("Fez parseURL\n");
   getIpByHost(&info);
+  printf("Fez getIpByHost\n");
 
   int port = 21;
 
   sockets socket;
 
   connectFTP(info.ip, port);
-
+  printf("Fez connectFTP\n");
+  printf("%x", info.user);
   loginFTP(info.user, info.password, &socket);
+  printf("Fez login\n");
 
   cdFTP(info.path, &socket);
 
