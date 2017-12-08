@@ -155,7 +155,7 @@ int connectSocket(const char* ip, int port){
   printf("ip: %s\n", ip);
   int sockfd;
   struct  sockaddr_in server_addr;
-  printf("Depois da declração de struct\n");
+
     /*server address handling*/
   bzero((char*)&server_addr,sizeof(server_addr));
   server_addr.sin_family = AF_INET;
@@ -180,12 +180,12 @@ int connectSocket(const char* ip, int port){
 int readFtpReply(int control, char* str, size_t size){
 
   FILE* fp = fdopen(control, "r");
-  printf("HERE\n");
+
   do{
     fgets(str, size, fp);
     printf("%s\n",str);
   }while((str[0] <= 5 && str[0] >= 1) || str[3] != ' ');
-  printf("HERE\n");
+
 
   return 0;
 }
@@ -204,24 +204,21 @@ int loginFTP(const char* user, const char* password, sockets* ftp){
 
   sprintf(userTest, "USER %s\n", user);
   sprintf(passTest, "PASS %s\n", password);
-  printf("UserTest %s", userTest);
+
   if(sendToFTP(ftp->control, userTest, strlen(userTest))){
     printf("Login failed!\n");
     return -1;
   }
-printf("ftpControl %d\n", ftp->control);
+
   if(readFtpReply(ftp->control, userTest, STRING_SIZE)){
     printf("Login failed!\n");
     return -1;
   }
-  printf("aqui2\n");
-  printf("passTest %s", passTest);
 
   if(sendToFTP(ftp->control, passTest, strlen(passTest))){
     printf("Login failed!\n");
     return -1;
   }
-  printf("aqui3");
 
   if(readFtpReply(ftp->control, passTest, STRING_SIZE)){
     printf("Login failed!\n");
@@ -280,7 +277,7 @@ int passiveMode(sockets* ftp){
   }
 
   sprintf(passiveIp,"%d.%d.%d.%d",ip1,ip2,ip3,ip4);
-  printf("PassiveIp %d.%d.%d.%d\n", ip1, ip2, ip3, ip4);
+  
   int port = port1*256 + port2;
 
   if((ftp->data = connectSocket(passiveIp,port)) < 0)
@@ -288,7 +285,6 @@ int passiveMode(sockets* ftp){
     printf("Passive mode cannot be entered.");
     return 1;
   }
-  printf("NO FIM DO PASSIVE MODE\n");
   return 0;
 
 }
