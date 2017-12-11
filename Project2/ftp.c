@@ -26,7 +26,6 @@ int parseURL(char *path, url_info *info){
   }
 
   if(existsUser){
-    indexPath++;
     while(path[indexPath] != ':'){
       buffer[indexBuffer] = path[indexPath];
       indexBuffer++;
@@ -50,7 +49,7 @@ int parseURL(char *path, url_info *info){
     free(buffer);
     buffer = (char*)malloc(STRING_SIZE);
     indexBuffer = 0;
-    indexPath++;
+
   }
   else{
     char array[9];
@@ -62,11 +61,11 @@ int parseURL(char *path, url_info *info){
       indexBuffer++;
     }
     info->user=malloc(indexBuffer);
-    printf("info->user");
-    printf("%s", info->user);
+    printf("info->user: ");
+    printf("%s\n", info->user);
     memcpy(info->user, buffer, indexBuffer);
-    printf("info->user");
-    printf("%s", info->user);
+    printf("info->user: ");
+    printf("%s\n", info->user);
     free(buffer);
     buffer = (char*)malloc(STRING_SIZE);
     indexBuffer = 0;
@@ -105,6 +104,8 @@ int parseURL(char *path, url_info *info){
   char del = '/';
   info->file = strrchr(info->path, del);
   info->file++;
+
+	info->file[strlen(info->file)-1] = 0;
 
   printf("\n\n\nFilename: %s\n\n\n", info->file);
 
