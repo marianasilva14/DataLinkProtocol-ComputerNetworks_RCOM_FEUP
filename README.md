@@ -1,4 +1,4 @@
-# Redes de Computadores
+# RCOM
 
 ### Project 1: Data Link Protocol
 
