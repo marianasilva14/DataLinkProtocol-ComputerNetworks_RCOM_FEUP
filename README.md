@@ -9,3 +9,10 @@
 
 - [x] Development of download application
 - [x] Configuration and study of a computer network
+
+#### Group members
+
+- Francisca Leão Cerquinho Ribeiro da Fonseca - up201505791
+- Mariana Lopes Silva - up201506197
+- Nuno Soares Marques - up201109347
+
